@@ -3,6 +3,7 @@ const STORAGE_KEY = "bataan_finance_multi_project_v2";
 const UI_STORAGE_KEY = "bataan_finance_ui_v1";
 const AUTH_SESSION_KEY = "bataan_finance_auth_v1";
 const AI_SETTINGS_KEY = "bataan_finance_ai_settings_v1";
+const REFRESH_BACKUP_KEY = "bataan_finance_refresh_backup_v1";
 const AUTH_ENABLED = false;
 const AUTH_TIMEOUT_MS = 60 * 60 * 1000;
 
@@ -926,7 +927,56 @@ function loadState() {
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
+  const refreshBackup = loadRefreshBackup();
+  if (refreshBackup) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshBackup));
+    } catch {
+      // The page can still render from the temporary backup; saving may fail if storage is full.
+    }
+    return refreshBackup;
+  }
   return baseState();
+}
+
+function loadRefreshBackup() {
+  const readers = [
+    () => sessionStorage.getItem(REFRESH_BACKUP_KEY),
+    () => localStorage.getItem(REFRESH_BACKUP_KEY),
+  ];
+  for (const read of readers) {
+    try {
+      const saved = read();
+      if (!saved) continue;
+      const backup = JSON.parse(saved);
+      if (backup?.data && backup?.app === "finance-program") return backup.data;
+    } catch {
+      // Ignore broken temporary backups and keep trying other places.
+    }
+  }
+  return null;
+}
+
+function saveRefreshBackup() {
+  const backup = JSON.stringify({
+    app: "finance-program",
+    savedAt: new Date().toISOString(),
+    data: dataOnlyState(state),
+  });
+  let saved = false;
+  try {
+    sessionStorage.setItem(REFRESH_BACKUP_KEY, backup);
+    saved = true;
+  } catch {
+    saved = false;
+  }
+  try {
+    localStorage.setItem(REFRESH_BACKUP_KEY, backup);
+    saved = true;
+  } catch {
+    // Session backup is enough for a normal refresh.
+  }
+  return saved;
 }
 
 function loadUiState() {
@@ -1444,6 +1494,11 @@ function bindLoginControls() {
 
 async function manualRefreshApp() {
   saveStateOnly();
+  const backupSaved = saveRefreshBackup();
+  if (!backupSaved) {
+    alert("刷新保护备份失败，可能是图片或数据太多导致浏览器空间不足。为避免刷新后数据丢失，请先导出本机备份或删除部分大图片后再刷新。");
+    return;
+  }
   if (manualRefreshButton) {
     manualRefreshButton.disabled = true;
     manualRefreshButton.textContent = "刷新中";
@@ -5278,7 +5333,9 @@ function bindTopControls() {
     const selectedSubproject = state.subprojects.find((item) => item.id === subprojectLedgerFilter.value)
       || state.subprojects.find((item) => !selectedProject || item.projectId === selectedProject)
       || state.subprojects[0];
-    state.subLedgers.unshift(createBlankSubLedger(selectedSubproject.id));
+    const row = createBlankSubLedger(selectedSubproject.id);
+    state.subLedgers.unshift(row);
+    showNewSubLedgerRow(row);
     saveState("新增分包流水");
     renderAll();
   });
@@ -7197,6 +7254,18 @@ function createBlankSubLedger(subprojectId = "") {
     note: "",
     images: [],
   };
+}
+
+function showNewSubLedgerRow(row) {
+  if (!row) return;
+  if (searchInput) searchInput.value = "";
+  if (subcontractSearch) subcontractSearch.value = "";
+  if (subcontractDateFrom) subcontractDateFrom.value = "";
+  if (subcontractDateTo) subcontractDateTo.value = "";
+  if (subprojectProjectFilter) subprojectProjectFilter.value = row.projectId || "";
+  if (subprojectLedgerFilter) subprojectLedgerFilter.value = row.subprojectId || "";
+  applySubLedgerPanelState(false);
+  saveUiState({ subLedgerPanelHidden: false });
 }
 
 function subledgerFromEntry(entry) {
@@ -9119,7 +9188,9 @@ function addDailySubLedger() {
   const selectedSubproject = state.subprojects.find((item) => item.id === subprojectLedgerFilter.value)
     || state.subprojects.find((item) => !selectedProject || item.projectId === selectedProject)
     || state.subprojects[0];
-  state.subLedgers.unshift(createBlankSubLedger(selectedSubproject.id));
+  const row = createBlankSubLedger(selectedSubproject.id);
+  state.subLedgers.unshift(row);
+  showNewSubLedgerRow(row);
   saveState("日常操作新增分包流水");
   openOperationView("subcontracts");
 }
