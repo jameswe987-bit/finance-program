@@ -1,0 +1,9 @@
+[build]
+  publish = "outputs/finance-program-netlify-deploy"
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
