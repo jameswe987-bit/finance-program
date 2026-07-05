@@ -1999,6 +1999,17 @@ function saveCloudLoginPreference() {
   });
 }
 
+function cloudErrorText(error) {
+  const message = String(error?.message || error || "");
+  if (/jwt expired|token.*expired|invalid jwt/i.test(message)) {
+    return "云端登录已过期，请重新点击“登录云端”，再重新操作。";
+  }
+  if (/invalid login credentials/i.test(message)) {
+    return "邮箱或密码不属于这个 Supabase 项目的 Authentication 用户。请在 Supabase 的 Authentication -> Users 里创建用户，或确认邮箱已验证。";
+  }
+  return message || "云端操作失败。";
+}
+
 async function cloudLogin() {
   const cloud = window.FinanceCloud;
   if (!cloud?.isConfigured()) return alert("云端同步还没有配置。请先填写 cloud/supabase-config.js 里的 Supabase URL 和 anon key，并把 enabled 改为 true。");
@@ -2013,11 +2024,7 @@ async function cloudLogin() {
     updateCloudStatus("云端登录成功");
   } catch (error) {
     updateCloudStatus("云端登录失败");
-    const message = String(error.message || "");
-    const hint = /invalid login credentials/i.test(message)
-      ? "邮箱或密码不属于这个 Supabase 项目的 Authentication 用户。请在 Supabase 的 Authentication -> Users 里创建用户，或确认邮箱已验证。"
-      : message;
-    alert(`云端登录失败：${hint}`);
+    alert(`云端登录失败：${cloudErrorText(error)}`);
   }
 }
 
@@ -2036,7 +2043,7 @@ async function uploadLocalStateToCloud() {
     alert("上传完成。云端旧数据已自动备份，手机或其它电脑登录后可以下载同一份数据。");
   } catch (error) {
     updateCloudStatus("上传失败");
-    alert(`上传失败：${error.message}`);
+    alert(`上传失败：${cloudErrorText(error)}`);
   }
 }
 
@@ -2067,7 +2074,7 @@ async function downloadCloudStateToLocal() {
     alert("下载完成。当前设备原来的数据已自动备份到云端备份记录。");
   } catch (error) {
     updateCloudStatus("下载失败");
-    alert(`下载失败：${error.message}`);
+    alert(`下载失败：${cloudErrorText(error)}`);
   }
 }
 
@@ -2082,7 +2089,7 @@ async function backupCloudState() {
     alert("云端备份已完成。");
   } catch (error) {
     updateCloudStatus("备份失败");
-    alert(`备份失败：${error.message}`);
+    alert(`备份失败：${cloudErrorText(error)}`);
   }
 }
 

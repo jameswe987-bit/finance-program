@@ -46,6 +46,43 @@
     };
   }
 
+  function isExpiredTokenMessage(message) {
+    return /jwt expired|token.*expired|invalid jwt/i.test(String(message || ""));
+  }
+
+  async function refreshSession() {
+    const refreshToken = state.session?.refresh_token;
+    if (!refreshToken) {
+      signOut();
+      throw new Error("云端登录已过期，请重新登录云端账号。");
+    }
+    const res = await fetch(`${cleanUrl()}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${config.supabaseAnonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const text = await res.text();
+    let payload = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = text;
+    }
+    if (!res.ok) {
+      signOut();
+      const message = payload?.msg || payload?.message || payload?.error_description || payload?.error || "云端登录已过期，请重新登录云端账号。";
+      throw new Error(message);
+    }
+    saveSession(payload);
+    state.organizationId = "";
+    state.profileId = "";
+    return payload;
+  }
+
   async function request(path, options = {}) {
     if (!isConfigured()) throw new Error("云端同步未配置。");
     const res = await fetch(`${cleanUrl()}${path}`, {
@@ -64,6 +101,17 @@
       throw new Error(message);
     }
     return payload;
+  }
+
+  async function requestWithRefresh(path, options = {}) {
+    try {
+      return await request(path, options);
+    } catch (error) {
+      const message = error?.message || "";
+      if (!isExpiredTokenMessage(message)) throw error;
+      await refreshSession();
+      return request(path, options);
+    }
   }
 
   async function signIn(email, password) {
@@ -90,9 +138,9 @@
     if (state.organizationId && state.profileId) return state;
 
     const organizationName = config.organizationName || "项目财务系统";
-    let orgs = await request(`/rest/v1/finance_organizations?name=eq.${encodeURIComponent(organizationName)}&select=id,name&limit=1`);
+    let orgs = await requestWithRefresh(`/rest/v1/finance_organizations?name=eq.${encodeURIComponent(organizationName)}&select=id,name&limit=1`);
     if (!Array.isArray(orgs) || !orgs.length) {
-      orgs = await request("/rest/v1/finance_organizations?select=id,name", {
+      orgs = await requestWithRefresh("/rest/v1/finance_organizations?select=id,name", {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify({ name: organizationName }),
@@ -102,9 +150,9 @@
 
     const user = state.session?.user || {};
     const username = user.email || "cloud-user";
-    let profiles = await request(`/rest/v1/finance_profiles?organization_id=eq.${state.organizationId}&username=eq.${encodeURIComponent(username)}&select=id,username,role,status&limit=1`);
+    let profiles = await requestWithRefresh(`/rest/v1/finance_profiles?organization_id=eq.${state.organizationId}&username=eq.${encodeURIComponent(username)}&select=id,username,role,status&limit=1`);
     if (!Array.isArray(profiles) || !profiles.length) {
-      profiles = await request("/rest/v1/finance_profiles?select=id,username,role,status", {
+      profiles = await requestWithRefresh("/rest/v1/finance_profiles?select=id,username,role,status", {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify({
@@ -124,7 +172,7 @@
   async function pullState() {
     await ensureContext();
     const key = config.documentKey || "main";
-    const rows = await request(`/rest/v1/finance_state_documents?organization_id=eq.${state.organizationId}&document_key=eq.${encodeURIComponent(key)}&select=payload,version,updated_at&limit=1`);
+    const rows = await requestWithRefresh(`/rest/v1/finance_state_documents?organization_id=eq.${state.organizationId}&document_key=eq.${encodeURIComponent(key)}&select=payload,version,updated_at&limit=1`);
     if (!Array.isArray(rows) || !rows.length) return null;
     state.lastSyncAt = rows[0].updated_at || new Date().toISOString();
     return rows[0].payload || null;
@@ -133,7 +181,7 @@
   async function pushState(payload) {
     await ensureContext();
     const key = config.documentKey || "main";
-    const rows = await request("/rest/v1/finance_state_documents?on_conflict=organization_id,document_key&select=id,version,updated_at", {
+    const rows = await requestWithRefresh("/rest/v1/finance_state_documents?on_conflict=organization_id,document_key&select=id,version,updated_at", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=representation" },
       body: JSON.stringify({
@@ -150,7 +198,7 @@
 
   async function backupState(payload, reason = "manual") {
     await ensureContext();
-    return request("/rest/v1/finance_state_backups", {
+    return requestWithRefresh("/rest/v1/finance_state_backups", {
       method: "POST",
       body: JSON.stringify({
         organization_id: state.organizationId,
