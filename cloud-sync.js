@@ -198,8 +198,9 @@
 
   async function backupState(payload, reason = "manual") {
     await ensureContext();
-    return requestWithRefresh("/rest/v1/finance_state_backups", {
+    const rows = await requestWithRefresh("/rest/v1/finance_state_backups?select=id,backup_reason,created_at,version", {
       method: "POST",
+      headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         organization_id: state.organizationId,
         document_key: config.documentKey || "main",
@@ -209,6 +210,13 @@
         created_by: state.profileId,
       }),
     });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return {
+      ...row,
+      table: "finance_state_backups",
+      documentKey: config.documentKey || "main",
+      organizationId: state.organizationId,
+    };
   }
 
   function status() {

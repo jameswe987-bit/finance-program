@@ -305,6 +305,7 @@ const restoreLocalBackupInput = document.querySelector("#restoreLocalBackupInput
 const localDiskStatus = document.querySelector("#localDiskStatus");
 const localDiskSaveButton = document.querySelector("#localDiskSaveButton");
 const localDiskLoadButton = document.querySelector("#localDiskLoadButton");
+const backupLocationHint = document.querySelector("#backupLocationHint");
 const clearSearchButton = document.querySelector("#clearSearch");
 const clearUserSearchButton = document.querySelector("#clearUserSearch");
 const clearLedgerSearchButton = document.querySelector("#clearLedgerSearch");
@@ -387,6 +388,7 @@ let pendingDeletedRecords = [];
 let autoRefreshTimer = null;
 let autoRefreshCountdownTimer = null;
 let autoRefreshRemaining = 20;
+let lastBackupLocation = "";
 document.querySelector("#sourceTime").textContent = "多项目可编辑版";
 const initialUiState = loadUiState();
 const initialAiSettings = loadAiSettings();
@@ -1654,22 +1656,22 @@ async function manualRefreshApp() {
   if (compacted) renderAll();
   const backupSaved = saveRefreshBackup();
   if (!backupSaved) {
-    exportLocalBackup("紧急备份");
+    const fileName = exportLocalBackup("紧急备份");
     if (manualRefreshButton) {
       manualRefreshButton.disabled = false;
       manualRefreshButton.textContent = "刷新";
     }
-    alert("刷新保护备份失败，通常是图片或数据太多导致浏览器空间不足。系统已自动导出一份紧急备份文件，请先保存好备份，再删除部分大图片后继续。");
+    alert(`刷新保护备份失败，通常是图片或数据太多导致浏览器空间不足。系统已自动导出一份紧急备份文件，请先保存好备份，再删除部分大图片后继续。\n\n文件位置：浏览器下载目录 / ${fileName}`);
     return;
   }
   const stateSaved = saveStateOnly();
   if (!stateSaved) {
-    exportLocalBackup("紧急备份");
+    const fileName = exportLocalBackup("紧急备份");
     if (manualRefreshButton) {
       manualRefreshButton.disabled = false;
       manualRefreshButton.textContent = "刷新";
     }
-    alert("当前数据没有真正保存到浏览器，所以已停止刷新。系统已自动导出一份紧急备份文件。请先保存好备份，再删除部分大图片后重试。");
+    alert(`当前数据没有真正保存到浏览器，所以已停止刷新。系统已自动导出一份紧急备份文件。请先保存好备份，再删除部分大图片后重试。\n\n文件位置：浏览器下载目录 / ${fileName}`);
     return;
   }
   if (manualRefreshButton) {
@@ -1706,16 +1708,16 @@ function updateAutoRefreshUi(message = "") {
 async function backupBeforeAutoRefresh() {
   const backupSaved = saveRefreshBackup();
   if (!backupSaved) {
-    exportLocalBackup("自动刷新前备份");
-    throw new Error("自动刷新前备份失败，已导出备份文件。");
+    const fileName = exportLocalBackup("自动刷新前备份");
+    throw new Error(`自动刷新前备份失败，已导出备份文件：浏览器下载目录 / ${fileName}`);
   }
   const compacted = await compactStoredImages();
   if (compacted) renderAll();
   const stateSaved = saveStateOnly();
   await saveStateToLocalDisk("auto-refresh");
   if (!stateSaved && !isLocalDiskMode()) {
-    exportLocalBackup("自动刷新前备份");
-    throw new Error("浏览器保存失败，已停止自动刷新。");
+    const fileName = exportLocalBackup("自动刷新前备份");
+    throw new Error(`浏览器保存失败，已停止自动刷新。已导出备份文件：浏览器下载目录 / ${fileName}`);
   }
 }
 
@@ -2341,6 +2343,27 @@ function setLocalDiskStatus(message = "") {
   localDiskStatus.textContent = message || (isLocalDiskMode() ? "本地硬盘保存可用" : "需用本地保存服务打开");
 }
 
+function cloudBackupLocation(backup) {
+  if (!backup) return "云端备份表：Supabase / finance_state_backups";
+  const id = backup.id ? `，备份ID：${backup.id}` : "";
+  const reason = backup.backup_reason ? `，类型：${backup.backup_reason}` : "";
+  return `云端备份位置：Supabase 项目 jfinance-program / 表 finance_state_backups / document_key=${backup.documentKey || "main"}${reason}${id}`;
+}
+
+function localBackupFileName(prefix = "项目财务完整备份") {
+  return `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
+}
+
+function localDiskDataPath() {
+  return "outputs/finance-program/local-data/finance-state.json";
+}
+
+function rememberBackupLocation(text = "") {
+  lastBackupLocation = text;
+  if (backupLocationHint) backupLocationHint.textContent = `最近备份位置：${text || "暂无"}`;
+  if (text && localDiskStatus) localDiskStatus.textContent = text.length > 80 ? `${text.slice(0, 80)}...` : text;
+}
+
 async function localDiskRequest(path, options = {}) {
   const response = await fetch(path, {
     ...options,
@@ -2375,7 +2398,8 @@ async function saveStateToLocalDisk(reason = "auto") {
         data: cloneForArchive(dataOnlyState(state)),
       }),
     });
-    setLocalDiskStatus(`已保存到硬盘 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
+    const location = `已保存到硬盘：${localDiskDataPath()} / ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
+    rememberBackupLocation(location);
     return true;
   } catch (error) {
     setLocalDiskStatus("硬盘保存失败");
@@ -2462,11 +2486,13 @@ async function uploadLocalStateToCloud() {
   updateCloudStatus("正在备份云端旧数据...");
   try {
     const oldCloudState = await cloud.pullState();
-    if (oldCloudState) await cloud.backupState(oldCloudState, "before-upload");
+    const backup = oldCloudState ? await cloud.backupState(oldCloudState, "before-upload") : null;
+    const backupLocation = backup ? cloudBackupLocation(backup) : "云端之前没有主数据，所以本次上传前没有生成旧数据备份。";
+    rememberBackupLocation(backupLocation);
     updateCloudStatus("正在上传当前设备数据...");
     await cloud.pushState(dataOnlyState(state));
     updateCloudStatus("本机数据已上传云端");
-    alert("上传完成。云端旧数据已自动备份，手机或其它电脑登录后可以下载同一份数据。");
+    alert(`上传完成。手机或其它电脑登录后可以下载同一份数据。\n\n${backupLocation}`);
   } catch (error) {
     updateCloudStatus("上传失败");
     alert(`上传失败：${cloudErrorText(error)}`);
@@ -2483,7 +2509,9 @@ async function downloadCloudStateToLocal() {
     const cloudState = await cloud.pullState();
     if (!cloudState) return alert("云端还没有数据。请先在一台电脑上传本机数据。");
     updateCloudStatus("正在备份当前设备数据...");
-    await cloud.backupState(dataOnlyState(state), "before-download");
+    const backup = await cloud.backupState(dataOnlyState(state), "before-download");
+    const backupLocation = cloudBackupLocation(backup);
+    rememberBackupLocation(backupLocation);
     state.history.unshift({
       id: makeId(),
       time: new Date().toLocaleString("zh-CN", { hour12: false }),
@@ -2497,7 +2525,7 @@ async function downloadCloudStateToLocal() {
     saveStateOnly();
     renderAll();
     updateCloudStatus("云端数据已下载，当前设备旧数据已备份");
-    alert("下载完成。当前设备原来的数据已自动备份到云端备份记录。");
+    alert(`下载完成。当前设备原来的数据已自动备份。\n\n${backupLocation}`);
   } catch (error) {
     updateCloudStatus("下载失败");
     alert(`下载失败：${cloudErrorText(error)}`);
@@ -2510,9 +2538,11 @@ async function backupCloudState() {
   if (!cloud.status().signedIn) return alert("请先登录云端账号。");
   updateCloudStatus("正在备份云端...");
   try {
-    await cloud.backupState(dataOnlyState(state), "manual");
+    const backup = await cloud.backupState(dataOnlyState(state), "manual");
+    const backupLocation = cloudBackupLocation(backup);
+    rememberBackupLocation(backupLocation);
     updateCloudStatus("云端备份完成");
-    alert("云端备份已完成。");
+    alert(`云端备份已完成。\n\n${backupLocation}`);
   } catch (error) {
     updateCloudStatus("备份失败");
     alert(`备份失败：${cloudErrorText(error)}`);
@@ -2530,12 +2560,15 @@ function exportLocalBackup(prefix = "项目财务完整备份") {
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  const fileName = localBackupFileName(prefix);
   link.href = url;
-  link.download = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  rememberBackupLocation(`本机备份文件：浏览器下载目录 / ${fileName}`);
+  return fileName;
 }
 
 function restoreLocalBackupFromFile(file) {
