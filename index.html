@@ -163,6 +163,7 @@
               </button>
               <input class="hidden-file" id="avatarInput" type="file" accept="image/*" />
               <div class="welcome-text" id="currentUserBadge">欢迎，管理员</div>
+              <button class="topbar-action ghost" id="manualRefreshButton" type="button" title="更新缓存并重新载入">刷新</button>
               <button class="topbar-action" id="changePasswordButton" type="button">改密</button>
               <button class="topbar-action ghost" id="logoutButton" type="button">退出</button>
             </div>
@@ -752,6 +753,36 @@
                   <input class="hidden-file" id="restoreLocalBackupInput" type="file" accept="application/json,.json" />
                 </div>
               </div>
+            </div>
+            <div class="interface-switch-panel admin-only" id="publishGuidePanel" hidden>
+              <div class="section-title-row">
+                <h4>程序更新发布</h4>
+                <span>GitHub + Netlify 自动发布流程</span>
+              </div>
+              <div class="publish-flow">
+                <div class="publish-step">
+                  <strong>1. 修改程序</strong>
+                  <span>让 Codex 完成功能修改，并生成最新发布文件。</span>
+                </div>
+                <div class="publish-step">
+                  <strong>2. 上传 GitHub</strong>
+                  <span>把最新文件同步到 GitHub 仓库：jameswe987-bit / finance-program。</span>
+                </div>
+                <div class="publish-step">
+                  <strong>3. Netlify 自动部署</strong>
+                  <span>Netlify 会读取 GitHub 最新版本并自动发布；发布目录为根目录。</span>
+                </div>
+                <div class="publish-step">
+                  <strong>4. 手机刷新 APP</strong>
+                  <span>点击右上角“刷新”；如果看不到新版，再关闭后重新打开 APP。</span>
+                </div>
+              </div>
+              <div class="publish-links">
+                <a class="tool-button ghost" href="https://github.com/jameswe987-bit/finance-program" target="_blank" rel="noreferrer">打开 GitHub</a>
+                <a class="tool-button ghost" href="https://app.netlify.com/projects/jovial-crisp-5e0dcd/deploys" target="_blank" rel="noreferrer">打开 Netlify 部署</a>
+                <a class="tool-button" href="https://jovial-crisp-5e0dcd.netlify.app" target="_blank" rel="noreferrer">打开正式网站</a>
+              </div>
+              <p class="permission-note cloud-note">注意：程序功能更新走 GitHub + Netlify；业务数据同步走 Supabase 云端，两者不是同一个功能。</p>
             </div>
             <div class="table-wrap soft-wrap">
               <table id="userTable"></table>
@@ -1409,6 +1440,17 @@
     </div>
 
     <script src="./cloud/supabase-config.js"></script>
+    <script>
+      window.FINANCE_CLOUD_CONFIG = window.FINANCE_CLOUD_CONFIG || {
+        enabled: true,
+        provider: "supabase",
+        supabaseUrl: "https://zxmwziolppimqtqjboys.supabase.co",
+        supabaseAnonKey: "sb_publishable_Ct4CyVXaPND7SXun6O8EDw_x55R-1VN",
+        organizationName: "项目财务系统",
+        documentKey: "main",
+        storageBucket: "finance-files",
+      };
+    </script>
     <script src="./cloud-sync.js"></script>
     <script src="./data.js"></script>
     <script src="./app.js"></script>

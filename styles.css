@@ -2411,6 +2411,42 @@ select {
   gap: 6px;
 }
 
+.publish-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.publish-step {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.publish-step strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.publish-step span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.publish-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.publish-links .tool-button {
+  text-decoration: none;
+}
+
 .cloud-note {
   margin: 0;
 }
@@ -4741,7 +4777,8 @@ td.readonly {
   .guide-grid,
   .cloud-sync-grid,
   .cloud-sync-actions,
-  .interface-switch-grid {
+  .interface-switch-grid,
+  .publish-flow {
     grid-template-columns: 1fr;
   }
 

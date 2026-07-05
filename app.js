@@ -157,6 +157,7 @@ const brandLogoMark = document.querySelector("#brandLogoMark");
 const loginBrandMark = document.querySelector("#loginBrandMark");
 const logoutButton = document.querySelector("#logoutButton");
 const changePasswordButton = document.querySelector("#changePasswordButton");
+const manualRefreshButton = document.querySelector("#manualRefreshButton");
 const sidebarToggle = document.querySelector("#sidebarToggle");
 const nav = document.querySelector(".nav");
 const views = [...document.querySelectorAll(".view")];
@@ -1401,6 +1402,7 @@ function bindLoginControls() {
   if (!AUTH_ENABLED) {
     logoutButton.addEventListener("click", () => alert("当前为测试模式，登录功能已临时关闭。"));
     changePasswordButton.addEventListener("click", changeCurrentPassword);
+    manualRefreshButton?.addEventListener("click", manualRefreshApp);
     return;
   }
   captchaCodeButton.addEventListener("click", makeCaptcha);
@@ -1437,6 +1439,24 @@ function bindLoginControls() {
     logoutCurrentUser();
   });
   changePasswordButton.addEventListener("click", changeCurrentPassword);
+  manualRefreshButton?.addEventListener("click", manualRefreshApp);
+}
+
+async function manualRefreshApp() {
+  saveStateOnly();
+  if (manualRefreshButton) {
+    manualRefreshButton.disabled = true;
+    manualRefreshButton.textContent = "刷新中";
+  }
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.update().catch(() => null)));
+    }
+    window.location.reload();
+  } catch {
+    window.location.reload();
+  }
 }
 
 function bindAuthActivity() {
