@@ -473,6 +473,30 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auto-refresh-toggle {
+  height: 28px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.auto-refresh-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.auto-refresh-status {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .topbar-user {
@@ -2409,6 +2433,18 @@ select {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+}
+
+.local-disk-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.local-disk-actions {
+  max-width: 420px;
 }
 
 .sync-guide-grid {

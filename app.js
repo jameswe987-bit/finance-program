@@ -4,6 +4,7 @@ const UI_STORAGE_KEY = "bataan_finance_ui_v1";
 const AUTH_SESSION_KEY = "bataan_finance_auth_v1";
 const AI_SETTINGS_KEY = "bataan_finance_ai_settings_v1";
 const REFRESH_BACKUP_KEY = "bataan_finance_refresh_backup_v1";
+const LAST_GOOD_BACKUP_KEY = "bataan_finance_last_good_backup_v1";
 const AUTH_ENABLED = false;
 const AUTH_TIMEOUT_MS = 60 * 60 * 1000;
 
@@ -159,6 +160,8 @@ const loginBrandMark = document.querySelector("#loginBrandMark");
 const logoutButton = document.querySelector("#logoutButton");
 const changePasswordButton = document.querySelector("#changePasswordButton");
 const manualRefreshButton = document.querySelector("#manualRefreshButton");
+const autoRefreshToggle = document.querySelector("#autoRefreshToggle");
+const autoRefreshStatus = document.querySelector("#autoRefreshStatus");
 const sidebarToggle = document.querySelector("#sidebarToggle");
 const nav = document.querySelector(".nav");
 const views = [...document.querySelectorAll(".view")];
@@ -299,6 +302,9 @@ const rememberCloudLogin = document.querySelector("#rememberCloudLogin");
 const exportLocalBackupButton = document.querySelector("#exportLocalBackupButton");
 const restoreLocalBackupButton = document.querySelector("#restoreLocalBackupButton");
 const restoreLocalBackupInput = document.querySelector("#restoreLocalBackupInput");
+const localDiskStatus = document.querySelector("#localDiskStatus");
+const localDiskSaveButton = document.querySelector("#localDiskSaveButton");
+const localDiskLoadButton = document.querySelector("#localDiskLoadButton");
 const clearSearchButton = document.querySelector("#clearSearch");
 const clearUserSearchButton = document.querySelector("#clearUserSearch");
 const clearLedgerSearchButton = document.querySelector("#clearLedgerSearch");
@@ -378,9 +384,13 @@ let drawingUploadData = null;
 let authTimer = null;
 let storageWarningShown = false;
 let pendingDeletedRecords = [];
+let autoRefreshTimer = null;
+let autoRefreshCountdownTimer = null;
+let autoRefreshRemaining = 20;
 document.querySelector("#sourceTime").textContent = "多项目可编辑版";
 const initialUiState = loadUiState();
 const initialAiSettings = loadAiSettings();
+let autoRefreshEnabled = Boolean(initialUiState.autoRefreshEnabled);
 let collapsedProgressProjects = new Set(initialUiState.collapsedProgressProjects || []);
 languageSelect.value = initialUiState.language || "zh";
 applyBrandSettings(initialUiState);
@@ -496,6 +506,10 @@ function newRecordAccountId() {
   return selected && selected.status !== "关闭" ? selected.id : firstEnabledAccountId();
 }
 
+function subprojectName(id) {
+  return state.subprojects.find((item) => item.id === id)?.name || "未选择分包";
+}
+
 function normalizeImages(images) {
   return Array.isArray(images)
     ? images.filter((item) => item?.src).map((item) => ({
@@ -578,7 +592,7 @@ function openImageModal(image) {
   imageModal.setAttribute("aria-hidden", "false");
 }
 
-function resizeImage(dataUrl, maxSide = 900, quality = 0.68) {
+function resizeImage(dataUrl, maxSide = 560, quality = 0.55) {
   return new Promise((resolve) => {
     const image = new Image();
     image.onload = () => {
@@ -610,6 +624,78 @@ function readImageFile(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function shouldCompactImage(image) {
+  return typeof image?.src === "string" && image.src.startsWith("data:image/") && image.src.length > 120000;
+}
+
+async function compactImage(image) {
+  if (!shouldCompactImage(image)) return image;
+  const src = await resizeImage(image.src, 560, 0.55);
+  return src.length < image.src.length ? { ...image, src, compactedAt: new Date().toLocaleString("zh-CN", { hour12: false }) } : image;
+}
+
+async function compactImageList(list) {
+  if (!Array.isArray(list) || !list.some(shouldCompactImage)) return { list, changed: false };
+  const next = await Promise.all(list.map(compactImage));
+  return {
+    list: next,
+    changed: next.some((image, index) => image?.src !== list[index]?.src),
+  };
+}
+
+async function compactObjectImages(item, fields = ["images"]) {
+  if (!item || typeof item !== "object") return false;
+  let changed = false;
+  for (const field of fields) {
+    const result = await compactImageList(item[field]);
+    if (result.changed) {
+      item[field] = result.list;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+async function compactStoredImages() {
+  let changed = false;
+  const collections = [
+    ["projects", ["contractImages"]],
+    ["accounts", ["images"]],
+    ["entries", ["images"]],
+    ["progress", ["images"]],
+    ["subLedgers", ["images"]],
+    ["bankChecks", ["images"]],
+    ["warehouseItems", ["images"]],
+    ["warehouseOutbounds", ["images"]],
+  ];
+  for (const [key, fields] of collections) {
+    const rows = Array.isArray(state[key]) ? state[key] : [];
+    for (const row of rows) {
+      if (await compactObjectImages(row, fields)) changed = true;
+    }
+  }
+  for (const report of Array.isArray(state.aiReports) ? state.aiReports : []) {
+    if (shouldCompactImage({ src: report.image })) {
+      const image = await compactImage({ src: report.image });
+      if (image.src !== report.image) {
+        report.image = image.src;
+        changed = true;
+      }
+    }
+  }
+  for (const report of Array.isArray(state.drawingReports) ? state.drawingReports : []) {
+    if (shouldCompactImage({ src: report.image })) {
+      const image = await compactImage({ src: report.image });
+      if (image.src !== report.image) {
+        report.image = image.src;
+        changed = true;
+      }
+    }
+    if (await compactObjectImages(report, ["images"])) changed = true;
+  }
+  return changed;
 }
 
 function readTextFile(file) {
@@ -699,7 +785,7 @@ async function readPdfDrawingFile(file) {
     const images = [];
     for (let pageNo = 1; pageNo <= pageCount; pageNo += 1) {
       const page = await pdf.getPage(pageNo);
-      const viewport = page.getViewport({ scale: 1.55 });
+      const viewport = page.getViewport({ scale: 1.05 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
@@ -708,7 +794,7 @@ async function readPdfDrawingFile(file) {
       images.push({
         id: makeId(),
         name: `${file.name} 第${pageNo}页`,
-        src: canvas.toDataURL("image/jpeg", 0.82),
+        src: canvas.toDataURL("image/jpeg", 0.58),
         addedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       });
     }
@@ -921,22 +1007,63 @@ function emptyState() {
 }
 
 function loadState() {
+  let savedState = null;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    if (saved) savedState = JSON.parse(saved);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
   const refreshBackup = loadRefreshBackup();
-  if (refreshBackup) {
+  const lastGoodBackup = loadLastGoodBackup();
+  const bestState = recoverableState(savedState, refreshBackup, lastGoodBackup);
+  if (bestState && bestState !== savedState) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshBackup));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bestState));
     } catch {
       // The page can still render from the temporary backup; saving may fail if storage is full.
     }
-    return refreshBackup;
   }
+  if (bestState) return bestState;
   return baseState();
+}
+
+function dataScore(data) {
+  if (!data || typeof data !== "object") return 0;
+  const listKeys = [
+    "projects", "accounts", "accountAdjustments", "companyDebts", "payables",
+    "bankChecks", "changeOrders", "aiReports", "drawingReports", "materialPlans",
+    "laborRecords", "warehouseItems", "warehouseOutbounds", "subprojects",
+    "subLedgers", "progress", "entries", "deletedRecords",
+  ];
+  let score = 0;
+  listKeys.forEach((key) => {
+    if (Array.isArray(data[key])) score += data[key].length * (key === "history" ? 0.2 : 1);
+  });
+  if (Array.isArray(data.history)) score += Math.min(data.history.length, 50) * 0.05;
+  const imageKeys = ["images", "contractImages"];
+  listKeys.forEach((key) => {
+    (Array.isArray(data[key]) ? data[key] : []).forEach((item) => {
+      imageKeys.forEach((field) => {
+        if (Array.isArray(item?.[field])) score += item[field].length * 0.5;
+      });
+    });
+  });
+  return score;
+}
+
+function recoverableState(savedState, refreshBackup, lastGoodBackup) {
+  const savedScore = dataScore(savedState);
+  const refreshScore = dataScore(refreshBackup);
+  const lastGoodScore = dataScore(lastGoodBackup);
+  if (!savedState) {
+    if (refreshBackup && refreshScore >= lastGoodScore) return refreshBackup;
+    if (lastGoodBackup) return lastGoodBackup;
+    return null;
+  }
+  if (refreshBackup && refreshScore > savedScore) return refreshBackup;
+  if (savedScore <= 3 && lastGoodBackup && lastGoodScore > savedScore) return lastGoodBackup;
+  return savedState;
 }
 
 function loadRefreshBackup() {
@@ -955,6 +1082,30 @@ function loadRefreshBackup() {
     }
   }
   return null;
+}
+
+function loadLastGoodBackup() {
+  try {
+    const saved = localStorage.getItem(LAST_GOOD_BACKUP_KEY);
+    if (!saved) return null;
+    const backup = JSON.parse(saved);
+    if (backup?.data && backup?.app === "finance-program") return backup.data;
+  } catch {
+    localStorage.removeItem(LAST_GOOD_BACKUP_KEY);
+  }
+  return null;
+}
+
+function saveLastGoodBackup() {
+  try {
+    localStorage.setItem(LAST_GOOD_BACKUP_KEY, JSON.stringify({
+      app: "finance-program",
+      savedAt: new Date().toISOString(),
+      data: dataOnlyState(state),
+    }));
+  } catch {
+    // If the browser is out of space, the normal save warning handles the risk.
+  }
 }
 
 function saveRefreshBackup() {
@@ -1453,6 +1604,7 @@ function bindLoginControls() {
     logoutButton.addEventListener("click", () => alert("当前为测试模式，登录功能已临时关闭。"));
     changePasswordButton.addEventListener("click", changeCurrentPassword);
     manualRefreshButton?.addEventListener("click", manualRefreshApp);
+    autoRefreshToggle?.addEventListener("click", toggleAutoRefresh);
     return;
   }
   captchaCodeButton.addEventListener("click", makeCaptcha);
@@ -1490,18 +1642,47 @@ function bindLoginControls() {
   });
   changePasswordButton.addEventListener("click", changeCurrentPassword);
   manualRefreshButton?.addEventListener("click", manualRefreshApp);
+  autoRefreshToggle?.addEventListener("click", toggleAutoRefresh);
 }
 
 async function manualRefreshApp() {
-  saveStateOnly();
+  if (manualRefreshButton) {
+    manualRefreshButton.disabled = true;
+    manualRefreshButton.textContent = "压缩中";
+  }
+  const compacted = await compactStoredImages();
+  if (compacted) renderAll();
   const backupSaved = saveRefreshBackup();
   if (!backupSaved) {
-    alert("刷新保护备份失败，可能是图片或数据太多导致浏览器空间不足。为避免刷新后数据丢失，请先导出本机备份或删除部分大图片后再刷新。");
+    exportLocalBackup("紧急备份");
+    if (manualRefreshButton) {
+      manualRefreshButton.disabled = false;
+      manualRefreshButton.textContent = "刷新";
+    }
+    alert("刷新保护备份失败，通常是图片或数据太多导致浏览器空间不足。系统已自动导出一份紧急备份文件，请先保存好备份，再删除部分大图片后继续。");
+    return;
+  }
+  const stateSaved = saveStateOnly();
+  if (!stateSaved) {
+    exportLocalBackup("紧急备份");
+    if (manualRefreshButton) {
+      manualRefreshButton.disabled = false;
+      manualRefreshButton.textContent = "刷新";
+    }
+    alert("当前数据没有真正保存到浏览器，所以已停止刷新。系统已自动导出一份紧急备份文件。请先保存好备份，再删除部分大图片后重试。");
     return;
   }
   if (manualRefreshButton) {
-    manualRefreshButton.disabled = true;
     manualRefreshButton.textContent = "刷新中";
+  }
+  if (window.location.protocol === "file:") {
+    renderAll();
+    if (manualRefreshButton) {
+      manualRefreshButton.disabled = false;
+      manualRefreshButton.textContent = "已刷新";
+      setTimeout(() => (manualRefreshButton.textContent = "刷新"), 1200);
+    }
+    return;
   }
   try {
     if ("serviceWorker" in navigator) {
@@ -1512,6 +1693,82 @@ async function manualRefreshApp() {
   } catch {
     window.location.reload();
   }
+}
+
+function updateAutoRefreshUi(message = "") {
+  if (!autoRefreshToggle || !autoRefreshStatus) return;
+  autoRefreshToggle.classList.toggle("active", autoRefreshEnabled);
+  autoRefreshToggle.setAttribute("aria-pressed", String(autoRefreshEnabled));
+  autoRefreshToggle.textContent = autoRefreshEnabled ? "自动刷新 开" : "自动刷新 20秒";
+  autoRefreshStatus.textContent = message || (autoRefreshEnabled ? `${autoRefreshRemaining}秒后刷新` : "已关闭");
+}
+
+async function backupBeforeAutoRefresh() {
+  const backupSaved = saveRefreshBackup();
+  if (!backupSaved) {
+    exportLocalBackup("自动刷新前备份");
+    throw new Error("自动刷新前备份失败，已导出备份文件。");
+  }
+  const compacted = await compactStoredImages();
+  if (compacted) renderAll();
+  const stateSaved = saveStateOnly();
+  await saveStateToLocalDisk("auto-refresh");
+  if (!stateSaved && !isLocalDiskMode()) {
+    exportLocalBackup("自动刷新前备份");
+    throw new Error("浏览器保存失败，已停止自动刷新。");
+  }
+}
+
+async function runAutoRefreshCycle() {
+  if (!autoRefreshEnabled) return;
+  try {
+    updateAutoRefreshUi("正在备份...");
+    await backupBeforeAutoRefresh();
+    updateAutoRefreshUi("正在刷新...");
+    if (window.location.protocol === "file:") {
+      renderAll();
+    } else {
+      window.location.reload();
+      return;
+    }
+    resetAutoRefreshTimers();
+  } catch (error) {
+    stopAutoRefresh(error.message || "自动刷新已停止");
+    alert(error.message || "自动刷新前备份失败，已停止自动刷新。");
+  }
+}
+
+function resetAutoRefreshTimers() {
+  clearInterval(autoRefreshCountdownTimer);
+  clearTimeout(autoRefreshTimer);
+  if (!autoRefreshEnabled) return updateAutoRefreshUi();
+  autoRefreshRemaining = 20;
+  updateAutoRefreshUi();
+  autoRefreshCountdownTimer = setInterval(() => {
+    autoRefreshRemaining = Math.max(0, autoRefreshRemaining - 1);
+    updateAutoRefreshUi();
+  }, 1000);
+  autoRefreshTimer = setTimeout(runAutoRefreshCycle, 20000);
+}
+
+function startAutoRefresh() {
+  autoRefreshEnabled = true;
+  saveUiState({ autoRefreshEnabled: true });
+  resetAutoRefreshTimers();
+}
+
+function stopAutoRefresh(message = "") {
+  autoRefreshEnabled = false;
+  saveUiState({ autoRefreshEnabled: false });
+  clearInterval(autoRefreshCountdownTimer);
+  clearTimeout(autoRefreshTimer);
+  autoRefreshRemaining = 20;
+  updateAutoRefreshUi(message);
+}
+
+function toggleAutoRefresh() {
+  if (autoRefreshEnabled) stopAutoRefresh();
+  else startAutoRefresh();
 }
 
 function bindAuthActivity() {
@@ -2008,9 +2265,14 @@ function saveState(action = "修改数据") {
   pendingDeletedRecords = [];
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveLastGoodBackup();
+    scheduleLocalDiskSave(action);
     storageWarningShown = false;
+    return true;
   } catch {
+    scheduleLocalDiskSave(action);
     showStorageWarning();
+    return false;
   }
 }
 
@@ -2018,9 +2280,14 @@ function saveStateOnly() {
   syncAllUpifDeductReceivables();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveLastGoodBackup();
+    scheduleLocalDiskSave("auto");
     storageWarningShown = false;
+    return true;
   } catch {
+    scheduleLocalDiskSave("auto");
     showStorageWarning();
+    return false;
   }
 }
 
@@ -2063,6 +2330,110 @@ function cloudErrorText(error) {
     return "邮箱或密码不属于这个 Supabase 项目的 Authentication 用户。请在 Supabase 的 Authentication -> Users 里创建用户，或确认邮箱已验证。";
   }
   return message || "云端操作失败。";
+}
+
+function isLocalDiskMode() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
+function setLocalDiskStatus(message = "") {
+  if (!localDiskStatus) return;
+  localDiskStatus.textContent = message || (isLocalDiskMode() ? "本地硬盘保存可用" : "需用本地保存服务打开");
+}
+
+async function localDiskRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const text = await response.text();
+  let payload = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = text;
+  }
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `本地硬盘保存失败 ${response.status}`);
+  return payload;
+}
+
+async function saveStateToLocalDisk(reason = "auto") {
+  if (!isLocalDiskMode()) {
+    setLocalDiskStatus("需用本地保存服务打开");
+    return false;
+  }
+  try {
+    await localDiskRequest("/api/local-state", {
+      method: "POST",
+      body: JSON.stringify({
+        app: "finance-program",
+        reason,
+        savedAt: new Date().toISOString(),
+        data: cloneForArchive(dataOnlyState(state)),
+      }),
+    });
+    setLocalDiskStatus(`已保存到硬盘 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
+    return true;
+  } catch (error) {
+    setLocalDiskStatus("硬盘保存失败");
+    return false;
+  }
+}
+
+let localDiskSaveTimer = null;
+function scheduleLocalDiskSave(reason = "auto") {
+  if (!isLocalDiskMode()) {
+    setLocalDiskStatus("需用本地保存服务打开");
+    return;
+  }
+  clearTimeout(localDiskSaveTimer);
+  localDiskSaveTimer = setTimeout(() => {
+    saveStateToLocalDisk(reason);
+  }, 600);
+}
+
+async function loadStateFromLocalDisk() {
+  if (!isLocalDiskMode()) return alert("请先用“启动本地硬盘保存.command”打开程序，再从硬盘读取。");
+  if (!confirm("确认从本地硬盘读取数据吗？当前页面数据会被硬盘保存的数据替换。")) return;
+  return loadStateFromLocalDiskNow(true);
+}
+
+async function loadStateFromLocalDiskNow(showAlerts = false) {
+  setLocalDiskStatus("正在读取硬盘数据...");
+  try {
+    const payload = await localDiskRequest("/api/local-state");
+    const diskData = payload?.data || payload?.payload || payload;
+    if (!diskData || !Array.isArray(diskData.projects) || !Array.isArray(diskData.accounts)) {
+      throw new Error("硬盘数据文件格式不正确。");
+    }
+    state = ensureStateShape({ ...diskData, history: state.history || [], deletedRecords: state.deletedRecords || [] });
+    lastDataSnapshot = JSON.stringify(dataOnlyState(state));
+    saveStateOnly();
+    renderAll();
+    setLocalDiskStatus("已从硬盘读取");
+  } catch (error) {
+    setLocalDiskStatus("读取失败");
+    if (showAlerts) alert(`从硬盘读取失败：${error.message}`);
+  }
+}
+
+async function offerLocalDiskLoadOnStart() {
+  if (!isLocalDiskMode()) return;
+  try {
+    const payload = await localDiskRequest("/api/local-state");
+    const diskData = payload?.data || payload?.payload || payload;
+    if (!diskData || !Array.isArray(diskData.projects) || !Array.isArray(diskData.accounts)) return;
+    if (dataScore(diskData) > dataScore(state) && confirm("检测到本地硬盘里有更多已保存数据，是否读取硬盘数据？")) {
+      await loadStateFromLocalDiskNow(true);
+    } else {
+      setLocalDiskStatus("本地硬盘保存可用");
+    }
+  } catch {
+    setLocalDiskStatus("本地硬盘保存可用");
+  }
 }
 
 async function cloudLogin() {
@@ -2148,7 +2519,7 @@ async function backupCloudState() {
   }
 }
 
-function exportLocalBackup() {
+function exportLocalBackup(prefix = "项目财务完整备份") {
   const backup = {
     app: "finance-program",
     version: 1,
@@ -2160,7 +2531,7 @@ function exportLocalBackup() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `项目财务完整备份_${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `${prefix}_${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -2200,7 +2571,11 @@ function restoreLocalBackupFromFile(file) {
       state.history = state.history.slice(0, 300);
       lastDataSnapshot = JSON.stringify(dataOnlyState(state));
       saveStateOnly();
-      renderAll();
+      try {
+        renderAll();
+      } catch (renderError) {
+        console.error(renderError);
+      }
       alert("备份恢复完成。当前只是恢复到本机，如果需要同步到手机，请再点击“上传本机数据”到云端。");
     } catch (error) {
       alert(`恢复失败：${error.message}`);
@@ -3682,6 +4057,26 @@ async function requestDoubaoReport(apiKey, model) {
   return requestDoubaoVisionReport(apiKey, model, buildAiPrompt(), aiImageDataUrl);
 }
 
+function doubaoErrorText(error, model = "") {
+  const message = String(error?.message || error || "");
+  if (/model or endpoint .*does not exist|do not have access|does not exist or you do not have access/i.test(message)) {
+    return `豆包 Endpoint ID 不存在或当前 API Key 没有权限访问。你现在填写的是「${model || "空"}」。请到火山方舟控制台的“推理接入点/Endpoint”页面复制正确的 Endpoint ID，并确认这个 API Key 属于同一个账号/项目且已开通视觉模型权限。`;
+  }
+  if (/unauthorized|invalid api key|authentication|permission/i.test(message)) {
+    return "豆包 API Key 无效或没有权限，请检查火山方舟 API Key 是否复制完整，并确认账号已开通对应模型。";
+  }
+  return message || "豆包请求失败。";
+}
+
+function validateDoubaoEndpoint(model) {
+  const value = String(model || "").trim();
+  if (!value) return "请填写豆包 Endpoint ID。";
+  if (/^\d+$/.test(value)) {
+    return "你填写的是纯数字，看起来像账号ID或项目ID，不像豆包推理接入点 Endpoint ID。请到火山方舟“推理接入点/Endpoint”页面复制正确 ID。";
+  }
+  return "";
+}
+
 async function requestDoubaoVisionReport(apiKey, model, prompt, imageDataUrl) {
   const imageUrls = Array.isArray(imageDataUrl) ? imageDataUrl : [imageDataUrl].filter(Boolean);
   const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
@@ -3703,7 +4098,7 @@ async function requestDoubaoVisionReport(apiKey, model, prompt, imageDataUrl) {
     }),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload?.error?.message || payload?.message || "豆包请求失败。");
+  if (!response.ok) throw new Error(doubaoErrorText(payload?.error?.message || payload?.message || "豆包请求失败。", model));
   const outputText = chatCompletionText(payload);
   if (!outputText) throw new Error("豆包没有返回可读取的报告内容。");
   return { parsed: aiJsonFromText(outputText), outputText };
@@ -3726,7 +4121,7 @@ async function requestDoubaoTextReport(apiKey, model, prompt, text) {
     }),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload?.error?.message || payload?.message || "豆包请求失败。");
+  if (!response.ok) throw new Error(doubaoErrorText(payload?.error?.message || payload?.message || "豆包请求失败。", model));
   const outputText = chatCompletionText(payload);
   if (!outputText) throw new Error("豆包没有返回可读取的报告内容。");
   return { parsed: aiJsonFromText(outputText), outputText };
@@ -3775,6 +4170,10 @@ async function analyzeAiImage() {
   const model = aiModel.value.trim();
   if (!apiKey) return alert(provider === "doubao" ? "请先填写豆包 API Key。" : "请先填写 API Key。");
   if (!model) return alert(provider === "doubao" ? "请填写豆包接入点 ID。" : "请填写模型名称。");
+  if (provider === "doubao") {
+    const endpointIssue = validateDoubaoEndpoint(model);
+    if (endpointIssue) return alert(endpointIssue);
+  }
   if (!aiImageDataUrl) return alert("请先上传图片。");
   analyzeAiImageButton.disabled = true;
   aiStatus.textContent = provider === "doubao" ? "豆包正在识别图片并生成报告..." : "AI正在识别图片并生成报告...";
@@ -3829,6 +4228,8 @@ async function analyzeDrawingImage() {
   const model = drawingModel.value.trim();
   if (!apiKey) return alert("请先填写豆包 API Key。");
   if (!model) return alert("请填写豆包视觉接入点 ID。");
+  const endpointIssue = validateDoubaoEndpoint(model);
+  if (endpointIssue) return alert(endpointIssue);
   if (!drawingUploadData?.images?.length && !drawingUploadData?.rawText) return alert("请先上传PDF或图纸图片。");
   analyzeDrawingImageButton.disabled = true;
   drawingStatus.textContent = "豆包正在分析图纸并生成材料用量报告...";
@@ -5197,9 +5598,16 @@ function bindTopControls() {
   cloudEmail?.addEventListener("change", saveCloudLoginPreference);
   cloudPassword?.addEventListener("change", saveCloudLoginPreference);
   rememberCloudLogin?.addEventListener("change", saveCloudLoginPreference);
-  exportLocalBackupButton?.addEventListener("click", exportLocalBackup);
+  exportLocalBackupButton?.addEventListener("click", () => exportLocalBackup());
   restoreLocalBackupButton?.addEventListener("click", () => restoreLocalBackupInput?.click());
   restoreLocalBackupInput?.addEventListener("change", () => restoreLocalBackupFromFile(restoreLocalBackupInput.files?.[0]));
+  localDiskSaveButton?.addEventListener("click", async () => {
+    localDiskSaveButton.textContent = "保存中";
+    const ok = await saveStateToLocalDisk("manual");
+    localDiskSaveButton.textContent = ok ? "已保存" : "保存失败";
+    setTimeout(() => (localDiskSaveButton.textContent = "保存到硬盘"), 1200);
+  });
+  localDiskLoadButton?.addEventListener("click", loadStateFromLocalDisk);
   saveButton.addEventListener("click", () => {
     state.history.unshift({
       id: makeId(),
@@ -5218,6 +5626,13 @@ function bindTopControls() {
   resetButton.addEventListener("click", () => {
     if (!confirm("重置数据会清除当前浏览器保存的修改，确定重置吗？")) return;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LAST_GOOD_BACKUP_KEY);
+    localStorage.removeItem(REFRESH_BACKUP_KEY);
+    try {
+      sessionStorage.removeItem(REFRESH_BACKUP_KEY);
+    } catch {
+      // Ignore browsers that block session storage cleanup.
+    }
     state = baseState();
     renderAll();
   });
@@ -5227,6 +5642,13 @@ function bindTopControls() {
     if (typed !== "清空数据") return;
     state = ensureStateShape(emptyState());
     lastDataSnapshot = JSON.stringify(dataOnlyState(state));
+    localStorage.removeItem(LAST_GOOD_BACKUP_KEY);
+    localStorage.removeItem(REFRESH_BACKUP_KEY);
+    try {
+      sessionStorage.removeItem(REFRESH_BACKUP_KEY);
+    } catch {
+      // Ignore browsers that block session storage cleanup.
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     saveButton.textContent = "已清空";
     renderAll();
@@ -5338,6 +5760,8 @@ function bindTopControls() {
     showNewSubLedgerRow(row);
     saveState("新增分包流水");
     renderAll();
+    addSubLedgerButton.textContent = "已新增";
+    setTimeout(() => (addSubLedgerButton.textContent = "新增流水"), 1200);
   });
   addSubUsageButton.addEventListener("click", addSubUsageType);
   renameSubUsageButton.addEventListener("click", renameSelectedSubUsageType);
@@ -7262,6 +7686,8 @@ function showNewSubLedgerRow(row) {
   if (subcontractSearch) subcontractSearch.value = "";
   if (subcontractDateFrom) subcontractDateFrom.value = "";
   if (subcontractDateTo) subcontractDateTo.value = "";
+  if (projectFilter) projectFilter.value = row.projectId || "";
+  if (accountFilter) accountFilter.value = "";
   if (subprojectProjectFilter) subprojectProjectFilter.value = row.projectId || "";
   if (subprojectLedgerFilter) subprojectLedgerFilter.value = row.subprojectId || "";
   applySubLedgerPanelState(false);
@@ -9699,5 +10125,9 @@ bindLoginControls();
 bindAuthActivity();
 bindTopControls();
 applyLoginState();
+setLocalDiskStatus();
 renderAll();
+if (autoRefreshEnabled) resetAutoRefreshTimers();
+else updateAutoRefreshUi();
+offerLocalDiskLoadOnStart();
 registerAppInstallService();

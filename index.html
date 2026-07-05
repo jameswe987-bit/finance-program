@@ -155,6 +155,8 @@
               <div class="page-title-row">
                 <button class="sidebar-toggle" id="sidebarToggle" type="button" title="缩小侧边栏" aria-label="缩小侧边栏">☷</button>
                 <h2 id="pageTitle">项目总览</h2>
+                <button class="auto-refresh-toggle" id="autoRefreshToggle" type="button" aria-pressed="false">自动刷新 20秒</button>
+                <span class="auto-refresh-status" id="autoRefreshStatus">已关闭</span>
               </div>
             </div>
             <div class="topbar-user">
@@ -767,6 +769,30 @@
                   <input class="hidden-file" id="restoreLocalBackupInput" type="file" accept="application/json,.json" />
                 </div>
               </div>
+              <div class="local-disk-panel">
+                <div class="section-title-row">
+                  <h4>本地硬盘保存</h4>
+                  <span id="localDiskStatus">未检测</span>
+                </div>
+                <div class="sync-guide-grid">
+                  <div class="sync-guide-card">
+                    <strong>电脑本地保存</strong>
+                    <span>通过本地保存服务打开程序后，数据会写入电脑硬盘文件，不再只依赖浏览器空间。</span>
+                  </div>
+                  <div class="sync-guide-card">
+                    <strong>保存位置</strong>
+                    <span>默认保存到程序目录的 local-data/finance-state.json。</span>
+                  </div>
+                  <div class="sync-guide-card warn">
+                    <strong>使用方式</strong>
+                    <span>电脑端请用“启动本地硬盘保存.command”打开程序；手机端继续使用云端同步。</span>
+                  </div>
+                </div>
+                <div class="cloud-sync-actions local-disk-actions">
+                  <button class="tool-button" id="localDiskSaveButton" type="button">保存到硬盘</button>
+                  <button class="tool-button ghost" id="localDiskLoadButton" type="button">从硬盘读取</button>
+                </div>
+              </div>
             </div>
             <div class="interface-switch-panel admin-only" id="publishGuidePanel" hidden>
               <div class="section-title-row">
@@ -1338,7 +1364,7 @@
               <div class="ai-upload-panel">
                 <div class="doubao-quick-card">
                   <strong>豆包接入</strong>
-                  <span>填写火山方舟 API Key 和接入点 ID 后即可使用；设置只保存在这台电脑的浏览器里。</span>
+                  <span>填写火山方舟 API Key 和“推理接入点 Endpoint ID”后即可使用；不要填写账号ID、项目ID或普通数字。</span>
                 </div>
                 <label class="field">
                   <span>识别方式</span>
@@ -1352,8 +1378,8 @@
                   <input id="aiApiKey" type="password" placeholder="填写豆包/火山方舟 API Key" autocomplete="off" />
                 </label>
                 <label class="field">
-                  <span>豆包接入点 ID</span>
-                  <input id="aiModel" value="" placeholder="填写豆包接入点 ID" />
+                  <span>豆包 Endpoint ID</span>
+                  <input id="aiModel" value="" placeholder="例如 ep-xxxxxxxx，需从火山方舟推理接入点复制" />
                 </label>
                 <label class="field">
                   <span>所属项目</span>
@@ -1402,15 +1428,15 @@
               <div class="ai-upload-panel">
                 <div class="doubao-quick-card">
                   <strong>图纸算量分析</strong>
-                  <span>可免费分析PDF文字、CSV材料表和TXT文本；图片或扫描件需要豆包视觉API。</span>
+                  <span>可免费分析PDF文字、CSV材料表和TXT文本；图片或扫描件需要豆包视觉API和可用的 Endpoint ID。</span>
                 </div>
                 <label class="field">
                   <span>豆包 API Key</span>
                   <input id="drawingApiKey" type="password" placeholder="填写豆包/火山方舟 API Key" autocomplete="off" />
                 </label>
                 <label class="field">
-                  <span>豆包接入点 ID</span>
-                  <input id="drawingModel" placeholder="填写豆包视觉接入点 ID" />
+                  <span>豆包 Endpoint ID</span>
+                  <input id="drawingModel" placeholder="例如 ep-xxxxxxxx，需开通视觉模型权限" />
                 </label>
                 <label class="field">
                   <span>所属项目</span>
@@ -1465,8 +1491,8 @@
         storageBucket: "finance-files",
       };
     </script>
-    <script src="./cloud-sync.js"></script>
-    <script src="./data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./cloud-sync.js?v=20260705-2235"></script>
+    <script src="./data.js?v=20260705-2235"></script>
+    <script src="./app.js?v=20260705-2235"></script>
   </body>
 </html>
