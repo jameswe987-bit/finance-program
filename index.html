@@ -1,0 +1,1416 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="项目财务" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>项目财务管理</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./app-icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./app-icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <section class="login-screen" id="loginScreen">
+      <form class="login-panel" id="loginForm">
+        <div class="login-brand">
+          <span class="brand-mark" id="loginBrandMark">¥</span>
+          <div>
+            <h1 id="loginBrandTitle">项目财务登录</h1>
+            <p>请输入账号、密码和验证码</p>
+          </div>
+        </div>
+        <label class="field">
+          <span>登录账号</span>
+          <input id="loginUsername" autocomplete="username" placeholder="admin" />
+        </label>
+        <label class="field">
+          <span>登录密码</span>
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="默认 123456" />
+        </label>
+        <div class="captcha-row">
+          <label class="field">
+            <span>验证码</span>
+            <input id="loginCaptcha" autocomplete="off" placeholder="输入右侧验证码" />
+          </label>
+          <button class="captcha-code" id="captchaCode" type="button" title="点击更换验证码"></button>
+        </div>
+        <p class="login-error" id="loginError"></p>
+        <button class="tool-button login-submit" type="submit">登录</button>
+      </form>
+    </section>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <button class="brand-logo-button" id="brandLogoButton" type="button" title="上传公司Logo">
+            <span class="brand-mark" id="brandLogoMark">¥</span>
+          </button>
+          <input class="hidden-file" id="brandLogoInput" type="file" accept="image/*" />
+          <div>
+            <h1 id="brandTitle" contenteditable="true" spellcheck="false" title="点击修改系统名称">系统登录</h1>
+            <p id="sourceTime">读取中</p>
+          </div>
+        </div>
+        <nav class="nav">
+          <details class="nav-group" open>
+            <summary>工作台</summary>
+            <div class="nav-group-list">
+              <button class="active" data-view="overview" data-short="概">项目总览</button>
+              <button data-view="overview" data-overview-section="alerts" data-short="警">风险预警</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>日常操作</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="dailyOps" data-short="录">录入中心</button>
+              <button type="button" data-view="ledger" data-clear-filters="true" data-short="流">收支录入</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="purchase" data-short="采">采购入库</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="outbound" data-short="领">材料领用</button>
+              <button type="button" data-view="taskCenter" data-short="办">待办事项</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>项目管理</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="projects" data-clear-filters="true" data-short="项">项目总表</button>
+              <div class="nav-sub-list project-sub-list" id="projectNavList"></div>
+              <button type="button" data-view="changeOrders" data-clear-filters="true" data-short="签">变更签证</button>
+              <div class="nav-sub-list project-sub-list" id="changeOrderNavList"></div>
+              <button type="button" data-view="subcontracts" data-clear-filters="true" data-short="包">分包管理</button>
+              <div class="nav-sub-list project-sub-list" id="subcontractNavList"></div>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>财务管理</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="accounts" data-clear-filters="true" data-short="账">资金账户</button>
+              <div class="nav-sub-list finance-sub-list" id="accountNavList"></div>
+              <button type="button" data-view="ledger" data-clear-filters="true" data-short="收">收支流水</button>
+              <div class="nav-sub-list finance-sub-list" id="ledgerNavList"></div>
+              <button type="button" data-view="debts" data-clear-filters="true" data-short="应">应收台账</button>
+              <div class="nav-sub-list finance-sub-list" id="debtNavList"></div>
+              <button type="button" data-view="payables" data-clear-filters="true" data-short="付">应付台账</button>
+              <div class="nav-sub-list finance-sub-list" id="payableNavList"></div>
+              <button type="button" data-view="checks" data-clear-filters="true" data-short="票">银行支票</button>
+              <div class="nav-sub-list finance-sub-list" id="checkNavList"></div>
+              <button type="button" data-view="dividends" data-clear-filters="true" data-short="分">股份分红</button>
+              <div class="nav-sub-list finance-sub-list" id="dividendNavList"></div>
+              <button type="button" data-view="cashflow" data-clear-filters="true" data-short="核">资金核对</button>
+              <div class="nav-sub-list finance-sub-list" id="cashflowNavList"></div>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>采购成本</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="warehouse" data-clear-filters="true" data-short="材">材料总览</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="purchase" data-short="采">采购入库</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="outbound" data-short="领">材料领用</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="inventory" data-short="库">库存总览</button>
+              <button type="button" data-view="warehouse" data-warehouse-section="flow" data-short="流">库存流水</button>
+              <div class="nav-sub-list" id="warehouseNavList"></div>
+              <button type="button" data-view="costControl" data-clear-filters="true" data-short="本">成本总览</button>
+              <button type="button" data-view="costControl" data-cost-section="material" data-short="计">材料计划</button>
+              <button type="button" data-view="costControl" data-cost-section="labor" data-short="工">人工成本</button>
+              <button type="button" data-view="costControl" data-cost-section="price" data-short="价">材料比价</button>
+              <button type="button" data-view="costControl" data-cost-section="advice" data-short="议">采购建议</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>智能报表</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="analysis" data-clear-filters="true" data-short="统">查询统计</button>
+              <div class="nav-sub-list finance-sub-list" id="analysisNavList"></div>
+              <button type="button" data-view="aiTools" data-clear-filters="true" data-short="图">清单识别</button>
+              <button type="button" data-view="drawingAnalysis" data-clear-filters="true" data-short="析">图纸分析</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>系统设置</summary>
+            <div class="nav-group-list">
+              <button data-view="users" data-short="人">账号权限</button>
+              <button data-view="translations" data-short="英">中英文对照</button>
+              <button data-view="history" data-short="记">修改记录</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>帮助中心</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="helpGuide" data-guide-section="start" data-short="帮">使用说明</button>
+              <button type="button" data-view="helpGuide" data-guide-section="daily" data-short="录">日常填单</button>
+              <button type="button" data-view="helpGuide" data-guide-section="cloud" data-short="云">云端同步</button>
+              <button type="button" data-view="helpGuide" data-guide-section="backup" data-short="备">备份恢复</button>
+            </div>
+          </details>
+        </nav>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div class="topbar-head">
+            <div>
+              <p class="eyebrow">巴丹 4 层钢结构工程</p>
+              <div class="page-title-row">
+                <button class="sidebar-toggle" id="sidebarToggle" type="button" title="缩小侧边栏" aria-label="缩小侧边栏">☷</button>
+                <h2 id="pageTitle">项目总览</h2>
+              </div>
+            </div>
+            <div class="topbar-user">
+              <button class="avatar-button" id="avatarButton" type="button" title="修改头像">
+                <span id="currentUserAvatar">管</span>
+              </button>
+              <input class="hidden-file" id="avatarInput" type="file" accept="image/*" />
+              <div class="welcome-text" id="currentUserBadge">欢迎，管理员</div>
+              <button class="topbar-action" id="changePasswordButton" type="button">改密</button>
+              <button class="topbar-action ghost" id="logoutButton" type="button">退出</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="搜索项目、账户、分类、备注" />
+            <select id="projectFilter">
+              <option value="">全部项目</option>
+            </select>
+            <select id="accountFilter">
+              <option value="">全部账户</option>
+            </select>
+            <select id="usageFilter">
+              <option value="">全部用途</option>
+            </select>
+            <select id="currencySelect" title="选择货币">
+              <option value="PHP">PHP 菲律宾比索</option>
+              <option value="CNY">CNY 人民币</option>
+              <option value="USD">USD 美元</option>
+              <option value="HKD">HKD 港币</option>
+              <option value="EUR">EUR 欧元</option>
+              <option value="JPY">JPY 日元</option>
+              <option value="SGD">SGD 新加坡元</option>
+              <option value="AED">AED 迪拉姆</option>
+            </select>
+            <select id="languageSelect" title="语言">
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+              <option value="fil">Filipino</option>
+              <option value="zh-en">中文 + English</option>
+            </select>
+            <div class="zoom-control" title="页面显示比例">
+              <button class="zoom-button" id="zoomOut" type="button">－</button>
+              <button class="zoom-value" id="zoomReset" type="button">100%</button>
+              <button class="zoom-button" id="zoomIn" type="button">＋</button>
+            </div>
+            <button class="tool-button" id="saveButton">保存</button>
+            <button class="tool-button ghost danger-admin-only" id="resetButton" hidden>恢复初始</button>
+            <button class="tool-button danger-button admin-only danger-admin-only release-hidden" id="clearAllDataButton" hidden>清空数据</button>
+          </div>
+          <div class="page-tabs" id="pageTabs"></div>
+        </header>
+
+        <section id="dailyOps" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>日常操作</h3>
+              <div class="panel-actions">
+                <span>常用录入集中入口</span>
+              </div>
+            </div>
+            <div class="daily-ops-summary" id="dailyOpsSummary"></div>
+            <div class="daily-ops-grid">
+              <article class="daily-ops-card">
+                <div>
+                  <strong>项目资料</strong>
+                  <span>新工程、分包项目、合同和基础资料</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="project">新增项目</button>
+                <button class="tool-button ghost" type="button" data-daily-action="subproject">新增分包项目</button>
+                <button class="tool-button ghost" type="button" data-daily-open="projects">查看项目总表</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>财务流水</strong>
+                  <span>收入、支出、账户调整、进度款入账</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="entryExpense">新增支出流水</button>
+                <button class="tool-button ghost" type="button" data-daily-action="entryIncome">新增收入流水</button>
+                <button class="tool-button ghost" type="button" data-daily-action="progress">新增进度款</button>
+                <button class="tool-button ghost" type="button" data-daily-action="accountAdjustment">账户调整</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>应收应付</strong>
+                  <span>客户未收款、供应商未付款、支票</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="debt">新增应收</button>
+                <button class="tool-button ghost" type="button" data-daily-action="payable">新增应付</button>
+                <button class="tool-button ghost" type="button" data-daily-action="check">新增支票</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>材料仓库</strong>
+                  <span>采购入库、材料领用、材料计划</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="warehouseIn">新增采购入库</button>
+                <button class="tool-button ghost" type="button" data-daily-action="warehouseOut">新增材料领用</button>
+                <button class="tool-button ghost" type="button" data-daily-action="materialPlan">新增材料计划</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>项目现场</strong>
+                  <span>分包、签证、人工成本</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="subLedger">新增分包流水</button>
+                <button class="tool-button ghost" type="button" data-daily-action="changeOrder">新增工程变更</button>
+                <button class="tool-button ghost" type="button" data-daily-action="labor">新增人工记录</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>结算核对</strong>
+                  <span>成本核算、采购建议、股份分红和资金核对</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="purchaseAdvice">查看采购建议</button>
+                <button class="tool-button ghost" type="button" data-daily-action="costSummary">查看成本核算</button>
+                <button class="tool-button ghost" type="button" data-daily-action="dividend">查看股份分红</button>
+              </article>
+              <article class="daily-ops-card">
+                <div>
+                  <strong>智能辅助</strong>
+                  <span>采购清单识别、英文翻译、图纸分析和待办检查</span>
+                </div>
+                <button class="tool-button primary" type="button" data-daily-action="aiTools">上传采购清单</button>
+                <button class="tool-button ghost" type="button" data-daily-action="drawing">上传图纸分析</button>
+                <button class="tool-button ghost" type="button" data-daily-action="tasks">查看待办提醒</button>
+              </article>
+            </div>
+            <div class="daily-link-grid">
+              <button class="tool-button ghost" type="button" data-daily-open="ledger">查看收支流水</button>
+              <button class="tool-button ghost" type="button" data-daily-open="warehouse">查看仓库记录</button>
+              <button class="tool-button ghost" type="button" data-daily-open="costControl">查看成本统计</button>
+              <button class="tool-button ghost" type="button" data-daily-open="debts">查看应收款</button>
+              <button class="tool-button ghost" type="button" data-daily-open="payables">查看应付款</button>
+              <button class="tool-button ghost" type="button" data-daily-open="cashflow">查看资金核对</button>
+              <button class="tool-button ghost" type="button" data-daily-open="checks">查看银行支票</button>
+              <button class="tool-button ghost" type="button" data-daily-open="history">查看修改记录</button>
+            </div>
+            <div class="daily-required-panel" id="dailyRequiredPanel"></div>
+            <div class="table-wrap daily-ops-recent-wrap">
+              <table id="dailyOpsRecent"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="helpGuide" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>帮助中心</h3>
+              <div class="panel-actions">
+                <span>功能说明 / 常用流程 / 注意事项</span>
+              </div>
+            </div>
+            <div class="guide-hero" id="guideStart">
+              <div>
+                <strong>项目财务系统使用说明</strong>
+                <span>先在“日常操作”录入流水和材料，再到“项目管理、财务管理、采购成本”查看统计和核对。</span>
+              </div>
+              <button class="tool-button" type="button" data-guide-open="dailyOps">进入日常操作</button>
+            </div>
+            <div class="guide-grid">
+              <article class="guide-card" id="guideDaily">
+                <h4>1. 日常操作</h4>
+                <p>把常用录入口集中到一起，包括收支流水、进度款、账户调整、应收应付、采购入库、材料领用、分包流水、工程变更和人工记录。</p>
+                <p>适合每天录数据时使用，不需要到各个页面找按钮。新增后系统会自动跳到对应页面继续填写明细和上传图片。</p>
+              </article>
+              <article class="guide-card">
+                <h4>2. 项目管理</h4>
+                <p>管理项目合同额、预付款、保证金、进度款、预算、分包项目和工程变更签证。</p>
+                <p>项目完成后可以在“股份分红”里结算，结算会生成应付款，但真正扣银行账户需要录入付款流水。</p>
+              </article>
+              <article class="guide-card guide-important">
+                <h4>3. 采购建议有什么用</h4>
+                <p>采购建议是系统根据“材料计划、采购入库、材料领用、库存余额、预算单价”自动整理出来的提醒。</p>
+                <p>它主要告诉你：哪些材料库存不够、哪些材料还需要买、哪些采购价格可能超过预算、哪些项目材料计划还没补齐。</p>
+                <p>简单说，它不是采购订单，而是一个“采购提醒和成本预警清单”。你可以先看采购建议，再决定是否新增采购入库。</p>
+              </article>
+              <article class="guide-card">
+                <h4>4. 财务管理</h4>
+                <p>资金账户显示每个银行或现金账户余额；收支流水是总流水，支出、收入、应收应付付款都建议从这里录。</p>
+                <p>应收、应付是台账；如果在收支流水里关联应收/应付，系统会同步计算已收、已付和未收、未付。</p>
+              </article>
+              <article class="guide-card">
+                <h4>5. 采购仓库和成本</h4>
+                <p>采购入库记录买了什么、数量、单价、供应商和图片；材料领用记录出了多少；库存总览会自动算剩余数量。</p>
+                <p>成本总览会把材料、人工、分包、项目支出合起来看，方便判断项目是否超预算。</p>
+              </article>
+              <article class="guide-card">
+                <h4>6. 图片识别和图纸分析</h4>
+                <p>采购清单识别可以上传英文或图片清单，生成中文报告和明细表。图纸分析可以辅助识别材料用量线索。</p>
+                <p>这些属于外部接口功能，管理员可以在“账号权限”的接口开关里开启或关闭。</p>
+              </article>
+              <article class="guide-card" id="guideCloud">
+                <h4>7. 云端同步</h4>
+                <p>云端同步用于电脑和手机共用同一份数据。先登录云端账号，再按需要点击“上传本机数据”或“下载云端数据”。</p>
+                <p>目前上传和下载是手动操作，避免多台设备同时修改时互相覆盖。正式多人使用前，建议先确认谁负责上传主数据。</p>
+              </article>
+              <article class="guide-card" id="guideBackup">
+                <h4>8. 备份恢复</h4>
+                <p>更新程序前建议进入“账号权限”的“本机备份与恢复”，先导出完整备份文件。</p>
+                <p>如果后期数据异常，可以选择备份文件恢复。恢复只影响当前本机，需要同步到手机时再上传云端。</p>
+              </article>
+            </div>
+            <div class="guide-flow">
+              <h4>推荐流程</h4>
+              <div class="guide-flow-list">
+                <span>建立项目</span>
+                <span>录入合同和预算</span>
+                <span>日常操作录流水</span>
+                <span>采购入库和领用</span>
+                <span>查看采购建议</span>
+                <span>核对资金流水</span>
+                <span>项目结算和分红</span>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="overview" class="view active">
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>经营预警</h3>
+                <span>自动检查</span>
+              </div>
+              <div class="business-alerts" id="businessAlerts"></div>
+            </section>
+            <section class="panel overview-wide-panel">
+              <div class="panel-head">
+                <h3>管理检查表</h3>
+                <span>资料完整 / 风险处理 / 快速进入</span>
+              </div>
+              <div class="management-checklist" id="managementChecklist"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>进度款收款</h3>
+                <span id="progressBadge"></span>
+              </div>
+              <div class="progress-track">
+                <div id="progressFill"></div>
+              </div>
+              <div class="compact-table" id="progressMini"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>账户余额</h3>
+                <span>按原表分组</span>
+              </div>
+              <div class="account-list" id="accountList"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>完善方向</h3>
+                <span>建筑财务后台</span>
+              </div>
+              <div class="improve-list" id="improveList"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>预算控制</h3>
+                <span>目标成本 / 实际成本</span>
+              </div>
+              <div class="budget-list" id="budgetOverview"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>现金流预测</h3>
+                <span>未来 30 天</span>
+              </div>
+              <div id="cashflowForecast"></div>
+            </section>
+            <section class="panel overview-wide-panel">
+              <div class="panel-head">
+                <h3>项目健康看板</h3>
+                <span>合同 / 成本 / 回款 / 利润</span>
+              </div>
+              <div class="table-wrap compact-wrap">
+                <table id="projectHealthTable"></table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="taskCenter" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>待办中心</h3>
+              <div class="panel-actions">
+                <span id="taskCenterCount"></span>
+              </div>
+            </div>
+            <div class="task-summary" id="taskSummary"></div>
+            <div class="table-wrap">
+              <table id="taskCenterTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="projects" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-title-tools">
+                <h3>项目总表</h3>
+                <button class="formula-toggle" id="toggleProjectFormula" type="button">计算公式</button>
+              </div>
+              <div class="panel-actions">
+                <button class="tool-button ghost" id="deleteSelectedProjects">删除项目</button>
+                <button class="tool-button" id="addProject">新增项目</button>
+              </div>
+            </div>
+            <div class="formula-list formula-list-hidden" id="projectFormulaList"></div>
+            <div class="project-simple-wrap">
+              <div id="projectTable" class="project-simple-list"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-title-tools">
+                <h3>进度款入账明细</h3>
+                <button class="formula-toggle" id="toggleProgressFormula" type="button">计算公式</button>
+              </div>
+              <div class="panel-actions">
+                <button class="tool-button ghost" id="deleteSelectedProgress">删除进度款</button>
+                <button class="tool-button" id="addProgress">新增进度款</button>
+                <button class="tool-button ghost" data-csv-template="progress">模板</button>
+                <button class="tool-button ghost" data-csv-import="progress">导入</button>
+                <button class="tool-button ghost" data-csv-export="progress">导出</button>
+              </div>
+            </div>
+            <div class="formula-list formula-list-hidden" id="progressFormulaList"></div>
+            <div class="table-wrap">
+              <div id="progressTable"></div>
+            </div>
+          </section>
+        </section>
+
+        <section id="changeOrders" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>工程变更签证</h3>
+              <div class="panel-actions">
+                <span id="changeOrderCount"></span>
+                <button class="tool-button ghost" id="deleteSelectedChangeOrders">删除变更</button>
+                <button class="tool-button" id="addChangeOrder">新增变更</button>
+              </div>
+            </div>
+            <div class="ledger-filter-grid debt-filter-grid">
+              <label class="field compact-field wide-field">
+                <span>变更查询</span>
+                <input id="changeOrderSearch" type="search" placeholder="搜索项目、变更事项、编号、备注" />
+              </label>
+              <label class="field compact-field">
+                <span>状态</span>
+                <select id="changeOrderStatusFilter">
+                  <option value="">全部状态</option>
+                </select>
+              </label>
+              <label class="field compact-field">
+                <span>开始日期</span>
+                <input id="changeOrderDateFrom" type="date" />
+              </label>
+              <label class="field compact-field">
+                <span>结束日期</span>
+                <input id="changeOrderDateTo" type="date" />
+              </label>
+              <button class="tool-button ghost" id="clearChangeOrderSearch">清空</button>
+            </div>
+            <div class="audit-summary" id="changeOrderSummary"></div>
+            <div class="table-wrap">
+              <table id="changeOrderTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="dividends" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>盈利股份分红</h3>
+              <div class="panel-actions">
+                <span id="dividendCount"></span>
+              </div>
+            </div>
+            <div class="dividend-summary" id="dividendSummary"></div>
+            <div class="dividend-list" id="dividendList"></div>
+          </section>
+        </section>
+
+        <section id="accounts" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>公共资金账户</h3>
+              <div class="panel-actions">
+                <button class="tool-button ghost" id="toggleAccountControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedAccounts">删除账户</button>
+                <button class="tool-button" id="addAccount">新增账户</button>
+                <button class="tool-button" id="addAccountAdjustment">账户调整</button>
+              </div>
+            </div>
+            <div class="account-controls" id="accountControls">
+              <div class="account-adjust-panel">
+                <div class="section-title-row">
+                  <h4>账户调整</h4>
+                  <div class="panel-actions">
+                    <button class="tool-button ghost" data-csv-template="accountAdjustment">模板</button>
+                    <button class="tool-button ghost" data-csv-import="accountAdjustment">导入</button>
+                    <button class="tool-button ghost" data-csv-export="accountAdjustment">导出</button>
+                  </div>
+                </div>
+                <div class="table-wrap compact-wrap">
+                  <table id="accountAdjustmentTable"></table>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap soft-wrap">
+              <table id="accountTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="cashflow" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>资金流水核对</h3>
+              <div class="panel-actions">
+                <span id="cashflowCount"></span>
+                <button class="tool-button ghost" id="toggleCashflowControls">收起</button>
+                <button class="tool-button ghost" id="checkCashflowErrors">核对</button>
+                <button class="tool-button ghost" data-csv-template="cashflow">模板</button>
+                <button class="tool-button" id="exportCashflow">导出</button>
+              </div>
+            </div>
+            <div class="cashflow-controls" id="cashflowControls">
+              <div class="ledger-filter-grid cashflow-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>流水查询</span>
+                  <input id="cashflowSearch" type="search" placeholder="搜索项目、账户、来源、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>来源类型</span>
+                  <select id="cashflowSourceFilter">
+                    <option value="">全部来源</option>
+                    <option value="初始金额">初始金额</option>
+                    <option value="进度款入账">进度款入账</option>
+                    <option value="项目收支流水">项目收支流水</option>
+                    <option value="分包流水">分包流水</option>
+                    <option value="银行支票">银行支票</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="cashflowDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="cashflowDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearCashflowSearch">清空</button>
+              </div>
+              <div class="audit-summary" id="cashflowAuditSummary"></div>
+            </div>
+            <div class="table-wrap">
+              <table id="cashflowTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="checks" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>银行支票记录</h3>
+              <div class="panel-actions">
+                <span id="checkCount"></span>
+                <button class="tool-button ghost" id="toggleCheckControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedChecks">删除支票</button>
+                <button class="tool-button" id="addCheck">新增支票</button>
+                <button class="tool-button ghost" data-csv-template="check">模板</button>
+                <button class="tool-button ghost" data-csv-import="check">导入</button>
+                <button class="tool-button ghost" data-csv-export="check">导出</button>
+              </div>
+            </div>
+            <div class="check-controls" id="checkControls">
+              <div class="ledger-filter-grid debt-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>支票查询</span>
+                  <input id="checkSearch" type="search" placeholder="搜索支票号、收款方、银行、项目、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>状态</span>
+                  <select id="checkStatusFilter">
+                    <option value="">全部状态</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="checkDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="checkDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearCheckSearch">清空</button>
+              </div>
+              <div class="debt-report" id="checkReport"></div>
+            </div>
+            <div class="table-wrap">
+              <table id="checkTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="users" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>账号管理</h3>
+              <div class="panel-actions">
+                <button class="tool-button ghost" id="deleteSelectedUsers">删除账号</button>
+                <button class="tool-button" id="addUserAccount">新增账号</button>
+              </div>
+            </div>
+            <div class="board-query">
+              <label class="field compact-field wide-field">
+                <span>账号查询</span>
+                <input id="userSearch" type="search" placeholder="搜索姓名、账号、角色、备注" />
+              </label>
+              <button class="tool-button ghost" id="clearUserSearch">清空</button>
+            </div>
+            <div class="permission-note">
+              <span>权限规划</span>
+              <strong>查看权限控制可进入的板块，编辑权限控制可修改的数据；本地版先保存配置，多人登录版可直接沿用。</strong>
+            </div>
+            <div class="interface-switch-panel admin-only" id="interfaceSwitchPanel" hidden>
+              <div class="section-title-row">
+                <h4>接口开关</h4>
+                <span>管理员可开启或关闭外部接口；关闭后按钮不可使用</span>
+              </div>
+              <div class="interface-switch-grid">
+                <label class="switch-row">
+                  <input type="checkbox" data-interface-toggle="doubaoVision" />
+                  <span>豆包采购清单识别</span>
+                  <em>图片采购清单翻译、识别并生成报告</em>
+                </label>
+                <label class="switch-row">
+                  <input type="checkbox" data-interface-toggle="openaiVision" />
+                  <span>OpenAI备用识别</span>
+                  <em>备用图片识别接口，需要单独 API Key</em>
+                </label>
+                <label class="switch-row">
+                  <input type="checkbox" data-interface-toggle="doubaoDrawing" />
+                  <span>豆包图纸分析</span>
+                  <em>图片/PDF图纸辅助识别、翻译和材料线索</em>
+                </label>
+              </div>
+            </div>
+            <div class="interface-switch-panel" id="cloudSyncPanel">
+              <div class="section-title-row">
+                <h4>云端同步</h4>
+                <span id="cloudSyncStatus">未配置</span>
+              </div>
+              <div class="cloud-sync-grid">
+                <label class="field">
+                  <span>云端邮箱</span>
+                  <input id="cloudEmail" type="email" placeholder="Supabase 登录邮箱" />
+                </label>
+                <label class="field">
+                  <span>云端密码</span>
+                  <input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Supabase 登录密码" />
+                </label>
+                <label class="switch-row compact-switch">
+                  <input type="checkbox" id="rememberCloudLogin" />
+                  <span>记住云端账号密码</span>
+                  <em>只保存在当前电脑或手机浏览器</em>
+                </label>
+                <div class="cloud-sync-actions">
+                  <button class="tool-button" id="cloudLoginButton" type="button">登录云端</button>
+                  <button class="tool-button ghost" id="cloudUploadButton" type="button">上传本机数据</button>
+                  <button class="tool-button ghost" id="cloudDownloadButton" type="button">下载云端数据</button>
+                  <button class="tool-button ghost" id="cloudBackupButton" type="button">备份云端</button>
+                </div>
+              </div>
+              <p class="permission-note cloud-note">云端同步默认关闭。填好 Supabase 配置并登录后，电脑和手机才能同步同一份数据。</p>
+            </div>
+            <div class="interface-switch-panel admin-only" id="localBackupPanel" hidden>
+              <div class="section-title-row">
+                <h4>本机备份与恢复</h4>
+                <span>更新程序前建议先导出备份</span>
+              </div>
+              <div class="cloud-sync-grid">
+                <div class="permission-note cloud-note">
+                  <span>说明</span>
+                  <strong>导出的备份文件可在电脑或手机重新导入恢复；恢复会覆盖当前本机数据，云端数据不会自动改变。</strong>
+                </div>
+                <div class="cloud-sync-actions">
+                  <button class="tool-button" id="exportLocalBackupButton" type="button">导出本机备份</button>
+                  <button class="tool-button ghost" id="restoreLocalBackupButton" type="button">从备份恢复</button>
+                  <input class="hidden-file" id="restoreLocalBackupInput" type="file" accept="application/json,.json" />
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap soft-wrap">
+              <table id="userTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="subcontracts" class="view">
+          <div class="subcontract-stack">
+            <section class="panel" id="subprojectPanel">
+              <div class="panel-head">
+                <h3>分包项目</h3>
+                <div class="panel-actions">
+                  <button class="tool-button ghost" id="toggleSubprojectPanel">收起</button>
+                  <button class="tool-button ghost" id="deleteSelectedSubprojects">删除分包</button>
+                  <button class="tool-button" id="addSubproject">新增分包</button>
+                </div>
+              </div>
+              <div class="collapsible-content" id="subprojectPanelBody">
+                <div class="subcontract-query">
+                  <label class="field compact-field">
+                    <span>所属项目</span>
+                    <select id="subprojectProjectFilter">
+                      <option value="">全部项目</option>
+                    </select>
+                  </label>
+                  <label class="field compact-field wide-field">
+                    <span>分包查询</span>
+                    <input id="subcontractSearch" type="search" placeholder="搜索分包名称、单位、账户、类型、备注" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>开始日期</span>
+                    <input id="subcontractDateFrom" type="date" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>结束日期</span>
+                    <input id="subcontractDateTo" type="date" />
+                  </label>
+                  <button class="tool-button ghost" id="applySubprojectProject">选择项目</button>
+                  <button class="tool-button ghost" id="clearSubcontractSearch">清空</button>
+                </div>
+                <div class="table-wrap soft-wrap">
+                  <table id="subprojectTable"></table>
+                </div>
+              </div>
+            </section>
+            <section class="panel" id="subLedgerPanel">
+              <div class="panel-head">
+                <h3>分包流水记录</h3>
+                <div class="panel-actions">
+                  <span id="subLedgerCount"></span>
+                  <button class="tool-button ghost" id="toggleSubLedgerPanel">收起</button>
+                  <button class="tool-button ghost" id="deleteSelectedSubLedgers">删除流水</button>
+                  <button class="tool-button" id="addSubLedger">新增流水</button>
+                  <button class="tool-button ghost" data-csv-template="subLedger">模板</button>
+                  <button class="tool-button ghost" data-csv-import="subLedger">导入</button>
+                  <button class="tool-button ghost" data-csv-export="subLedger">导出</button>
+                </div>
+              </div>
+              <div class="collapsible-content" id="subLedgerPanelBody">
+                <div class="subledger-tools">
+                  <label class="field compact-field">
+                    <span>分包项目</span>
+                    <select id="subprojectLedgerFilter">
+                      <option value="">全部分包项目</option>
+                    </select>
+                  </label>
+                  <label class="field compact-field">
+                    <span>分包用途类型</span>
+                    <select id="subUsageManagerSelect"></select>
+                  </label>
+                  <button class="icon-button" id="addSubUsage">新增类型</button>
+                  <button class="icon-button" id="renameSubUsage">改名</button>
+                  <button class="icon-button danger-button" id="deleteSubUsage">删除类型</button>
+                </div>
+                <div class="table-wrap subledger-wrap">
+                  <table id="subLedgerTable"></table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="debts" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>应收款台账</h3>
+              <div class="panel-actions">
+                <span id="debtCount"></span>
+                <button class="tool-button ghost" id="toggleDebtControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedDebts">删除应收</button>
+                <button class="tool-button" id="addDebt">新增应收</button>
+                <button class="tool-button ghost" data-csv-template="debt">模板</button>
+                <button class="tool-button ghost" data-csv-import="debt">导入</button>
+                <button class="tool-button ghost" data-csv-export="debt">导出</button>
+              </div>
+            </div>
+            <div class="debt-controls" id="debtControls">
+              <div class="ledger-filter-grid debt-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>应收查询</span>
+                  <input id="debtSearch" type="search" placeholder="搜索应收单位、项目、款项说明、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>状态</span>
+                  <select id="debtStatusFilter">
+                    <option value="">全部状态</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="debtDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="debtDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearDebtSearch">清空</button>
+              </div>
+              <div class="unit-manager">
+                <label class="field compact-field">
+                  <span>应收单位管理</span>
+                  <select id="receivableUnitSelect"></select>
+                </label>
+                <button class="icon-button" id="addReceivableUnit">新增单位</button>
+                <button class="icon-button" id="renameReceivableUnit">改名</button>
+                <button class="icon-button danger-button" id="deleteReceivableUnit">删除单位</button>
+              </div>
+              <div class="debt-report" id="debtReport"></div>
+            </div>
+            <div class="table-wrap">
+              <table id="debtTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="payables" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>应付款台账</h3>
+              <div class="panel-actions">
+                <span id="payableCount"></span>
+                <button class="tool-button ghost" id="togglePayableControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedPayables">删除应付</button>
+                <button class="tool-button" id="addPayable">新增应付</button>
+                <button class="tool-button ghost" data-csv-template="payable">模板</button>
+                <button class="tool-button ghost" data-csv-import="payable">导入</button>
+                <button class="tool-button ghost" data-csv-export="payable">导出</button>
+              </div>
+            </div>
+            <div class="debt-controls" id="payableControls">
+              <div class="ledger-filter-grid debt-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>应付查询</span>
+                  <input id="payableSearch" type="search" placeholder="搜索应付单位、项目、款项说明、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>状态</span>
+                  <select id="payableStatusFilter">
+                    <option value="">全部状态</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="payableDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="payableDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearPayableSearch">清空</button>
+              </div>
+              <div class="unit-manager">
+                <label class="field compact-field">
+                  <span>应付单位管理</span>
+                  <select id="payableUnitSelect"></select>
+                </label>
+                <button class="icon-button" id="addPayableUnit">新增单位</button>
+                <button class="icon-button" id="renamePayableUnit">改名</button>
+                <button class="icon-button danger-button" id="deletePayableUnit">删除单位</button>
+              </div>
+              <div class="debt-report" id="payableReport"></div>
+            </div>
+            <div class="table-wrap">
+              <table id="payableTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="ledger" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>项目收支流水</h3>
+              <div class="panel-actions">
+                <span id="ledgerCount"></span>
+                <button class="tool-button ghost" id="toggleLedgerControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedEntries">删除流水</button>
+                <button class="tool-button" id="addEntry">新增流水</button>
+                <button class="tool-button ghost" data-csv-template="ledger">模板</button>
+                <button class="tool-button ghost" data-csv-import="ledger">导入</button>
+                <button class="tool-button ghost" id="exportLedger">导出</button>
+              </div>
+            </div>
+            <div class="ledger-controls" id="ledgerControls">
+              <div class="ledger-filter-grid">
+                <label class="field compact-field">
+                  <span>明细项目</span>
+                  <select id="ledgerProjectSelect">
+                    <option value="">选择项目</option>
+                  </select>
+                </label>
+                <button class="tool-button ghost" id="applyLedgerProject">选择项目</button>
+                <label class="field compact-field wide-field">
+                  <span>收支查询</span>
+                  <input id="ledgerSearch" type="search" placeholder="搜索项目、账户、分类、用途" />
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="dateFromFilter" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="dateToFilter" type="date" />
+                </label>
+                <label class="field compact-field wide-field">
+                  <span>备注查询</span>
+                  <input id="noteFilter" type="search" placeholder="输入备注关键词" />
+                </label>
+                <button class="tool-button ghost" id="clearLedgerSearch">清空</button>
+              </div>
+              <div class="bank-summary" id="bankSummary"></div>
+              <div class="type-manager">
+                <div class="type-box">
+                  <div class="type-head">
+                    <strong>用途类型</strong>
+                    <button class="icon-button" id="addUsage">新增用途</button>
+                  </div>
+                  <div class="tag-list" id="usageTypeList"></div>
+                </div>
+                <div class="type-box">
+                  <div class="type-head">
+                    <strong>分类</strong>
+                    <button class="icon-button" id="addCategory">新增分类</button>
+                  </div>
+                  <div class="tag-list" id="categoryTypeList"></div>
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="ledgerTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="warehouse" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>材料采购与库存</h3>
+              <div class="panel-actions">
+                <span id="warehouseCount"></span>
+                <button class="tool-button ghost" id="toggleWarehouseControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedWarehouse">删除入库</button>
+                <button class="tool-button" id="addWarehouseItem">新增采购入库</button>
+                <button class="tool-button ghost" data-csv-template="warehousePurchase">模板</button>
+                <button class="tool-button ghost" data-csv-import="warehousePurchase">导入</button>
+                <button class="tool-button ghost" data-csv-export="warehousePurchase">导出</button>
+              </div>
+            </div>
+            <div class="warehouse-controls" id="warehouseControls">
+              <div class="ledger-filter-grid warehouse-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>材料查询</span>
+                  <input id="warehouseSearch" type="search" placeholder="搜索材料、供应商、快递单号、领用人、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>状态</span>
+                  <select id="warehouseStatusFilter">
+                    <option value="">全部状态</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="warehouseDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="warehouseDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearWarehouseSearch">清空</button>
+              </div>
+              <div class="warehouse-stats" id="warehouseStats"></div>
+              <div class="warehouse-alerts" id="warehouseAlerts"></div>
+            </div>
+            <div class="warehouse-section" id="warehouseInventorySection">
+              <h4>1. 材料库存总览</h4>
+              <div class="warehouse-inventory-wrap">
+                <table class="mini-table" id="warehouseInventoryTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="warehousePurchaseSection">
+              <h4>2. 采购入库</h4>
+              <div class="table-wrap">
+                <table id="warehouseTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="warehouseOutboundSection">
+              <div class="section-title-row">
+                <h4>3. 材料领用出库</h4>
+                <div class="panel-actions">
+                  <button class="tool-button ghost" id="deleteSelectedWarehouseOutbound">删除领用</button>
+                  <button class="tool-button" id="addWarehouseOutbound">新增领用</button>
+                  <button class="tool-button ghost" data-csv-template="warehouseOutbound">模板</button>
+                  <button class="tool-button ghost" data-csv-import="warehouseOutbound">导入</button>
+                  <button class="tool-button ghost" data-csv-export="warehouseOutbound">导出</button>
+                </div>
+              </div>
+              <div class="table-wrap compact-wrap">
+                <table id="warehouseOutboundTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="warehouseFlowSection">
+              <div class="section-title-row">
+                <h4>4. 库存流水记录</h4>
+                <div class="panel-actions">
+                  <button class="tool-button ghost" data-csv-export="warehouseFlow">导出</button>
+                </div>
+              </div>
+              <div class="table-wrap compact-wrap">
+                <table id="warehouseFlowTable"></table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="costControl" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>工程成本核算</h3>
+                <p>按项目管理材料计划、采购单价对比、人工班组和实际成本，及时发现超预算。</p>
+              </div>
+              <div class="panel-actions">
+                <span id="costControlCount"></span>
+                <button class="tool-button ghost" id="toggleCostControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedMaterialPlans">删除材料计划</button>
+                <button class="tool-button ghost" id="deleteSelectedLaborRecords">删除人工记录</button>
+                <button class="tool-button" id="addMaterialPlan">新增材料计划</button>
+                <button class="tool-button" id="addLaborRecord">新增人工记录</button>
+              </div>
+            </div>
+            <div class="warehouse-controls" id="costControls">
+              <div class="ledger-filter-grid cost-filter-grid">
+                <label class="field compact-field wide-field">
+                  <span>成本查询</span>
+                  <input id="costSearch" type="search" placeholder="搜索材料、规格、供应商、班组、工种、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="costDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="costDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearCostSearch">清空</button>
+              </div>
+              <div class="warehouse-stats" id="costStats"></div>
+              <div class="warehouse-alerts" id="costAlerts"></div>
+            </div>
+            <div class="warehouse-section" id="costSummarySection">
+              <h4>1. 成本总览</h4>
+              <div class="table-wrap compact-wrap">
+                <table class="mini-table" id="costSummaryTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="stageCostSection">
+              <h4>2. 施工阶段成本汇总</h4>
+              <div class="table-wrap compact-wrap">
+                <table class="mini-table" id="stageCostTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="purchaseAdviceSection">
+              <h4>3. 采购建议</h4>
+              <div class="table-wrap compact-wrap">
+                <table class="mini-table" id="purchaseAdviceTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="materialPlanSection">
+              <h4>4. 材料计划和预算单价</h4>
+              <div class="table-wrap">
+                <table id="materialPlanTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="laborControlSection">
+              <h4>5. 人工成本控制</h4>
+              <div class="table-wrap">
+                <table id="laborRecordTable"></table>
+              </div>
+            </div>
+            <div class="warehouse-section" id="priceCompareSection">
+              <h4>6. 材料采购比价</h4>
+              <div class="table-wrap compact-wrap">
+                <table id="priceCompareTable"></table>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="analysis" class="view">
+          <section class="panel query-panel">
+            <div class="panel-head">
+              <h3>查询结果</h3>
+              <div class="panel-actions">
+                <span id="querySummary">输入关键词或选择筛选条件后查看</span>
+                <button class="tool-button ghost" id="toggleAnalysisControls">收起</button>
+              </div>
+            </div>
+            <div class="analysis-controls" id="analysisControls">
+              <div class="query-actions">
+                <label class="field compact-field wide-field">
+                  <span>综合查询</span>
+                  <input id="analysisSearch" type="search" placeholder="搜索项目、账户、分类、备注" />
+                </label>
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="analysisDateFrom" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="analysisDateTo" type="date" />
+                </label>
+                <button class="tool-button ghost" id="clearAnalysisSearch">清空</button>
+                <button class="tool-button" id="exportAnalysis">导出</button>
+                <button class="tool-button ghost" id="clearSearch">清空全部</button>
+              </div>
+            </div>
+            <div class="table-wrap query-wrap">
+              <table id="queryTable"></table>
+            </div>
+          </section>
+          <div class="panel-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>支出分类统计</h3>
+                <span>按备注自动归类</span>
+              </div>
+              <div id="categoryBars" class="bars"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h3>用途统计</h3>
+                <span>钢结构 / 其它项目</span>
+              </div>
+              <div id="usageSummary" class="summary-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="translations" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>中英文对照</h3>
+              <div class="panel-actions">
+                <span id="translationCount"></span>
+                <button class="tool-button ghost" id="deleteSelectedTranslations">删除对照</button>
+                <button class="tool-button" id="addTranslation">新增对照</button>
+              </div>
+            </div>
+            <div class="board-query">
+              <label class="field compact-field wide-field">
+                <span>查询</span>
+                <input id="translationSearch" type="search" placeholder="搜索中文、英文、类型" />
+              </label>
+              <button class="tool-button ghost" id="clearTranslationSearch">清空</button>
+            </div>
+            <div class="translation-summary">
+              <div>
+                <strong>显示方式</strong>
+                <span>在流水、用途、分类、材料、单位等位置，匹配后显示为 中文 / English。</span>
+              </div>
+              <div>
+                <strong>不改原数据</strong>
+                <span>这里只改变显示名称，不会修改已经录入的流水内容。</span>
+              </div>
+            </div>
+            <div class="table-wrap soft-wrap">
+              <table id="translationTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="history" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>修改记录</h3>
+              <div class="panel-actions">
+                <span id="historyCount"></span>
+                <button class="tool-button ghost" id="toggleHistoryControls">收起</button>
+                <button class="tool-button ghost" id="deleteSelectedHistory">删除记录</button>
+                <button class="tool-button ghost" id="clearHistory">清空</button>
+              </div>
+            </div>
+            <div class="history-controls" id="historyControls">
+              <div class="ledger-filter-grid">
+                <label class="field compact-field">
+                  <span>开始日期</span>
+                  <input id="historyFromFilter" type="date" />
+                </label>
+                <label class="field compact-field">
+                  <span>结束日期</span>
+                  <input id="historyToFilter" type="date" />
+                </label>
+                <label class="field compact-field wide-field">
+                  <span>记录查询</span>
+                  <input id="historySearch" type="search" placeholder="搜索修改内容" />
+                </label>
+                <button class="tool-button ghost" id="clearHistorySearch">清空</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="historyTable"></table>
+            </div>
+          </section>
+        </section>
+
+        <section id="aiTools" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>豆包AI采购清单识别</h3>
+                <p>上传采购清单、收据或英文材料单，自动翻译并生成采购统计报告。</p>
+              </div>
+              <div class="panel-actions">
+                <span id="aiReportCount"></span>
+                <button class="tool-button ghost" id="deleteSelectedAiReports">删除报告</button>
+              </div>
+            </div>
+            <div class="ai-grid">
+              <div class="ai-upload-panel">
+                <div class="doubao-quick-card">
+                  <strong>豆包接入</strong>
+                  <span>填写火山方舟 API Key 和接入点 ID 后即可使用；设置只保存在这台电脑的浏览器里。</span>
+                </div>
+                <label class="field">
+                  <span>识别方式</span>
+                  <select id="aiProvider">
+                    <option value="doubao">豆包视觉识别</option>
+                    <option value="openai">OpenAI备用</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>豆包 API Key</span>
+                  <input id="aiApiKey" type="password" placeholder="填写豆包/火山方舟 API Key" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>豆包接入点 ID</span>
+                  <input id="aiModel" value="" placeholder="填写豆包接入点 ID" />
+                </label>
+                <label class="field">
+                  <span>所属项目</span>
+                  <select id="aiProjectSelect">
+                    <option value="">全部项目</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>报告名称</span>
+                  <input id="aiReportTitle" placeholder="例如：钢材购买清单" />
+                </label>
+                <label class="field">
+                  <span>上传图片</span>
+                  <input id="aiImageInput" type="file" accept="image/*" />
+                </label>
+                <div class="ai-actions">
+                  <button class="tool-button" id="analyzeAiImage">生成报告</button>
+                  <button class="tool-button ghost" data-csv-template="aiPurchase">表格模板</button>
+                  <button class="tool-button ghost" data-csv-import="aiPurchase">导入表格</button>
+                  <button class="tool-button ghost" id="saveAiSettings">保存设置</button>
+                </div>
+                <p class="ai-note">图片识别需要API；表格导入不需要AI和API Key，支持直接导入Excel或CSV。</p>
+                <div class="ai-preview" id="aiImagePreview"></div>
+              </div>
+              <div class="ai-report-panel">
+                <div class="ai-status" id="aiStatus">等待上传图片</div>
+                <div id="aiReportList"></div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="drawingAnalysis" class="view">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>建筑图纸算量分析</h3>
+                <p>上传英文 PDF 图纸、平面图、结构图、节点图或材料图截图，自动生成图纸摘要、材料用量线索和风险提示。</p>
+              </div>
+              <div class="panel-actions">
+                <span id="drawingReportCount"></span>
+                <button class="tool-button ghost" id="deleteSelectedDrawingReports">删除报告</button>
+              </div>
+            </div>
+            <div class="ai-grid">
+              <div class="ai-upload-panel">
+                <div class="doubao-quick-card">
+                  <strong>图纸算量分析</strong>
+                  <span>可免费分析PDF文字、CSV材料表和TXT文本；图片或扫描件需要豆包视觉API。</span>
+                </div>
+                <label class="field">
+                  <span>豆包 API Key</span>
+                  <input id="drawingApiKey" type="password" placeholder="填写豆包/火山方舟 API Key" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>豆包接入点 ID</span>
+                  <input id="drawingModel" placeholder="填写豆包视觉接入点 ID" />
+                </label>
+                <label class="field">
+                  <span>所属项目</span>
+                  <select id="drawingProjectSelect">
+                    <option value="">全部项目</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>报告名称</span>
+                  <input id="drawingReportTitle" placeholder="例如：4层公寓结构平面图" />
+                </label>
+                <label class="field">
+                  <span>上传PDF/图片/表格</span>
+                  <input id="drawingImageInput" type="file" accept="application/pdf,image/*,.pdf,.csv,text/csv,text/plain,.txt" />
+                </label>
+                <div class="ai-actions">
+                  <button class="tool-button" id="analyzeDrawingImage">AI算量</button>
+                  <button class="tool-button ghost" id="analyzeDrawingLocal">免费分析</button>
+                  <button class="tool-button ghost" id="saveDrawingSettings">保存设置</button>
+                </div>
+                <p class="ai-note">免费分析不需要API，适合有文字的PDF或表格；扫描图片没有文字时需要AI视觉。</p>
+                <div class="ai-preview" id="drawingImagePreview"></div>
+              </div>
+              <div class="ai-report-panel">
+                <div class="ai-status" id="drawingStatus">等待上传PDF或图纸图片</div>
+                <div id="drawingReportList"></div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="image-modal" id="imageModal" aria-hidden="true">
+      <div class="image-modal-backdrop" data-close-image></div>
+      <div class="image-modal-panel">
+        <button class="image-modal-close" type="button" data-close-image>关闭</button>
+        <img id="imageModalImg" alt="凭证图片" />
+        <p id="imageModalName"></p>
+      </div>
+    </div>
+
+    <script src="./cloud/supabase-config.js"></script>
+    <script src="./cloud-sync.js"></script>
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
