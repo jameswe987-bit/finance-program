@@ -171,6 +171,7 @@ const accountFilter = document.querySelector("#accountFilter");
 const usageFilter = document.querySelector("#usageFilter");
 const currencySelect = document.querySelector("#currencySelect");
 const languageSelect = document.querySelector("#languageSelect");
+const originalLanguageTextNodes = new WeakMap();
 const zoomOutButton = document.querySelector("#zoomOut");
 const zoomInButton = document.querySelector("#zoomIn");
 const zoomResetButton = document.querySelector("#zoomReset");
@@ -477,9 +478,14 @@ function selectOptions(items, selected) {
 function bilingualName(value) {
   const text = String(value || "").trim();
   if (!text) return "";
+  const mode = languageSelect?.value || loadUiState().language || "zh";
+  const baseText = text.includes(" / ") ? text.split(" / ")[0].trim() : text;
+  const row = (state?.translations || []).find((item) => item.zh === baseText || item.en === text || item.fil === text);
+  if (mode === "zh") return row?.zh || baseText;
+  if (mode === "en") return row?.en || baseText;
+  if (mode === "fil") return row?.fil || row?.en || baseText;
+  if (row?.en && row.en !== (row.zh || baseText)) return `${row.zh || baseText} / ${row.en}`;
   if (text.includes(" / ")) return text;
-  const row = (state?.translations || []).find((item) => item.zh === text || item.en === text);
-  if (row?.en && row.en !== text) return `${text} / ${row.en}`;
   const matched = (state?.translations || [])
     .filter((item) => item.zh && item.en && text.includes(item.zh))
     .sort((a, b) => b.zh.length - a.zh.length)
@@ -1330,27 +1336,29 @@ function applyLanguageMode(mode = loadUiState().language || "zh") {
   if (!languageSelect) return;
   languageSelect.value = mode;
   document.documentElement.lang = mode === "fil" ? "fil" : mode === "en" ? "en" : "zh-Hant";
-  if (mode === "zh") return;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       if (!shouldTranslateNode(node)) return NodeFilter.FILTER_REJECT;
-      const text = node.nodeValue.trim();
+      const text = (originalLanguageTextNodes.get(node) || node.nodeValue).trim();
       return uiTranslations[text] ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     },
   });
   const nodes = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
   nodes.forEach((node) => {
-    const raw = node.nodeValue;
+    if (!originalLanguageTextNodes.has(node)) originalLanguageTextNodes.set(node, node.nodeValue);
+    const raw = originalLanguageTextNodes.get(node);
     const text = raw.trim();
     node.nodeValue = raw.replace(text, translateUiText(text, mode));
   });
   document.querySelectorAll("[placeholder]").forEach((input) => {
-    const original = input.getAttribute("placeholder");
+    const original = input.dataset.originalPlaceholder || input.getAttribute("placeholder");
+    input.dataset.originalPlaceholder = original;
     input.setAttribute("placeholder", translateUiText(original, mode));
   });
   document.querySelectorAll("[title]").forEach((item) => {
-    const original = item.getAttribute("title");
+    const original = item.dataset.originalTitle || item.getAttribute("title");
+    item.dataset.originalTitle = original;
     item.setAttribute("title", translateUiText(original, mode));
   });
 }
