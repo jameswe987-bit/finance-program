@@ -348,13 +348,13 @@
               </article>
               <article class="guide-card" id="guideCloud">
                 <h4>7. 云端同步</h4>
-                <p>云端同步用于电脑和手机共用同一份数据。先登录云端账号，再按需要点击“上传本机数据”或“下载云端数据”。</p>
-                <p>目前上传和下载是手动操作，避免多台设备同时修改时互相覆盖。正式多人使用前，建议先确认谁负责上传主数据。</p>
+                <p>建议手机 APP 用来做现场日常录入，电脑端用来核对、导出和备份。手机录完后点击“上传本机数据”，电脑查看前点击“下载云端数据”。</p>
+                <p>目前上传和下载是手动操作，避免多台设备同时修改时互相覆盖。上传会先备份云端旧数据，下载会先备份当前设备数据。</p>
               </article>
               <article class="guide-card" id="guideBackup">
                 <h4>8. 备份恢复</h4>
-                <p>更新程序前建议进入“账号权限”的“本机备份与恢复”，先导出完整备份文件。</p>
-                <p>如果后期数据异常，可以选择备份文件恢复。恢复只影响当前本机，需要同步到手机时再上传云端。</p>
+                <p>重要录入完成或更新程序前，建议进入“账号权限”的“本机备份与恢复”，导出完整备份文件。</p>
+                <p>如果后期数据异常，可以选择备份文件恢复。恢复只影响当前设备，需要同步到其它手机或电脑时再上传云端。</p>
               </article>
             </div>
             <div class="guide-flow">
@@ -735,7 +735,21 @@
                   <button class="tool-button ghost" id="cloudBackupButton" type="button">备份云端</button>
                 </div>
               </div>
-              <p class="permission-note cloud-note">云端同步默认关闭。填好 Supabase 配置并登录后，电脑和手机才能同步同一份数据。</p>
+              <div class="sync-guide-grid">
+                <div class="sync-guide-card">
+                  <strong>推荐录入</strong>
+                  <span>日常填单优先用手机 APP，现场录入收支、采购、出库、图片和备注。</span>
+                </div>
+                <div class="sync-guide-card">
+                  <strong>推荐核对</strong>
+                  <span>电脑端适合查账、导出表格、检查项目利润和导出本机备份。</span>
+                </div>
+                <div class="sync-guide-card warn">
+                  <strong>同步规则</strong>
+                  <span>手机录完点“上传本机数据”；电脑查看前点“下载云端数据”。上传和下载前系统会自动留备份。</span>
+                </div>
+              </div>
+              <p class="permission-note cloud-note">云端同步用于手机和电脑共用数据；本机备份用于防止误删、误改或某一台设备数据异常。</p>
             </div>
             <div class="interface-switch-panel admin-only" id="localBackupPanel" hidden>
               <div class="section-title-row">

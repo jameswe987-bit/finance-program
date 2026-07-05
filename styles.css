@@ -2411,6 +2411,38 @@ select {
   gap: 6px;
 }
 
+.sync-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sync-guide-card {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sync-guide-card strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sync-guide-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sync-guide-card.warn {
+  border-color: rgba(180, 83, 9, 0.28);
+  background: var(--warn-soft);
+}
+
 .publish-flow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4777,6 +4809,7 @@ td.readonly {
   .guide-grid,
   .cloud-sync-grid,
   .cloud-sync-actions,
+  .sync-guide-grid,
   .interface-switch-grid,
   .publish-flow {
     grid-template-columns: 1fr;

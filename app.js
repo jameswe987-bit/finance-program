@@ -2025,12 +2025,15 @@ async function uploadLocalStateToCloud() {
   const cloud = window.FinanceCloud;
   if (!cloud?.isConfigured()) return alert("云端同步还没有配置。");
   if (!cloud.status().signedIn) return alert("请先登录云端账号。");
-  if (!confirm("确认把当前本机数据上传到云端吗？云端 main 数据会被当前本机数据覆盖。")) return;
-  updateCloudStatus("正在上传本机数据...");
+  if (!confirm("确认把当前设备的数据上传到云端吗？上传前系统会先备份云端旧数据，然后用当前设备数据覆盖云端主数据。")) return;
+  updateCloudStatus("正在备份云端旧数据...");
   try {
+    const oldCloudState = await cloud.pullState();
+    if (oldCloudState) await cloud.backupState(oldCloudState, "before-upload");
+    updateCloudStatus("正在上传当前设备数据...");
     await cloud.pushState(dataOnlyState(state));
     updateCloudStatus("本机数据已上传云端");
-    alert("上传完成。手机或其它电脑登录后可以下载同一份数据。");
+    alert("上传完成。云端旧数据已自动备份，手机或其它电脑登录后可以下载同一份数据。");
   } catch (error) {
     updateCloudStatus("上传失败");
     alert(`上传失败：${error.message}`);
@@ -2041,11 +2044,13 @@ async function downloadCloudStateToLocal() {
   const cloud = window.FinanceCloud;
   if (!cloud?.isConfigured()) return alert("云端同步还没有配置。");
   if (!cloud.status().signedIn) return alert("请先登录云端账号。");
-  if (!confirm("确认从云端下载数据到本机吗？当前本机数据会先保留一份修改记录，然后被云端数据替换。")) return;
+  if (!confirm("确认从云端下载数据到当前设备吗？下载前系统会先把当前设备数据备份到云端备份记录，然后再替换为云端主数据。")) return;
   updateCloudStatus("正在下载云端数据...");
   try {
     const cloudState = await cloud.pullState();
     if (!cloudState) return alert("云端还没有数据。请先在一台电脑上传本机数据。");
+    updateCloudStatus("正在备份当前设备数据...");
+    await cloud.backupState(dataOnlyState(state), "before-download");
     state.history.unshift({
       id: makeId(),
       time: new Date().toLocaleString("zh-CN", { hour12: false }),
@@ -2058,7 +2063,8 @@ async function downloadCloudStateToLocal() {
     lastDataSnapshot = JSON.stringify(dataOnlyState(state));
     saveStateOnly();
     renderAll();
-    updateCloudStatus("云端数据已下载");
+    updateCloudStatus("云端数据已下载，当前设备旧数据已备份");
+    alert("下载完成。当前设备原来的数据已自动备份到云端备份记录。");
   } catch (error) {
     updateCloudStatus("下载失败");
     alert(`下载失败：${error.message}`);
