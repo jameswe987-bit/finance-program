@@ -1,11 +1,11 @@
 const originalData = window.FINANCE_DATA;
 const STORAGE_KEY = "bataan_finance_multi_project_v2";
 const UI_STORAGE_KEY = "bataan_finance_ui_v1";
-const AUTH_SESSION_KEY = "bataan_finance_auth_v1";
+const AUTH_SESSION_KEY = "bataan_finance_auth_v2";
 const AI_SETTINGS_KEY = "bataan_finance_ai_settings_v1";
 const REFRESH_BACKUP_KEY = "bataan_finance_refresh_backup_v1";
 const LAST_GOOD_BACKUP_KEY = "bataan_finance_last_good_backup_v1";
-const AUTH_ENABLED = false;
+const AUTH_ENABLED = true;
 const AUTH_TIMEOUT_MS = 60 * 60 * 1000;
 
 const currencyLocales = {
@@ -123,8 +123,8 @@ const pageTitles = {
   cashflow: "资金流水核对",
   checks: "银行支票记录",
   dividends: "盈利股份分红",
-  debts: "应收款台账",
-  payables: "应付款台账",
+  debts: "应收 / 应付台账",
+  payables: "应收 / 应付台账",
   users: "账号管理",
   translations: "中英文对照",
   subcontracts: "分包项目管理",
@@ -1913,13 +1913,14 @@ function applyCheckControlsState(hidden) {
 function applyDebtControlsState(hidden) {
   debtControls.classList.toggle("controls-hidden", Boolean(hidden));
   toggleDebtControlsButton.textContent = hidden ? "展开" : "收起";
-  toggleDebtControlsButton.title = hidden ? "展开应收上方菜单" : "收起应收上方菜单";
+  toggleDebtControlsButton.title = hidden ? "展开应收/应付上方菜单" : "收起应收/应付上方菜单";
 }
 
 function applyPayableControlsState(hidden) {
-  payableControls.classList.toggle("controls-hidden", Boolean(hidden));
-  togglePayableControlsButton.textContent = hidden ? "展开" : "收起";
-  togglePayableControlsButton.title = hidden ? "展开应付上方菜单" : "收起应付上方菜单";
+  if (!payableControls || !togglePayableControlsButton) return;
+  payableControls.classList.remove("controls-hidden");
+  togglePayableControlsButton.textContent = "收起";
+  togglePayableControlsButton.title = "应付已合并到应收/应付台账";
 }
 
 function applyLedgerControlsState(hidden) {
@@ -2818,6 +2819,13 @@ function permissionChecks(user, kind, index) {
   `;
 }
 
+function permissionSummary(user, kind) {
+  const selected = user.permissions?.[kind] || [];
+  if (selected.length >= permissionModules.length) return "全部板块";
+  if (!selected.length) return "未开放";
+  return selected.map((id) => permissionModules.find((module) => module.id === id)?.name).filter(Boolean).slice(0, 4).join("、") + (selected.length > 4 ? ` 等 ${selected.length} 项` : "");
+}
+
 function progressCalc(row) {
   const project = state.projects.find((item) => item.id === row.projectId) || state.projects[0];
   const contractTotal = projectContract(project);
@@ -3498,10 +3506,10 @@ function createBlankPayable() {
 }
 
 function filteredPayables() {
-  const words = queryWords(searchInput.value, payableSearch.value);
+  const words = queryWords(searchInput.value, payableSearch.value || debtSearch.value);
   const status = payableStatusFilter.value;
-  const from = payableDateFrom.value;
-  const to = payableDateTo.value;
+  const from = payableDateFrom.value || debtDateFrom.value;
+  const to = payableDateTo.value || debtDateTo.value;
   return (state.payables || [])
     .map((row, index) => ({ ...row, index, balance: payableBalance(row), displayStatus: payableDisplayStatus(row) }))
     .filter((row) => {
@@ -3560,6 +3568,14 @@ function renderPayables() {
     <tbody>${body || `<tr><td colspan="12" class="empty">暂无应付记录</td></tr>`}</tbody>
   `;
   bindPayableInputs();
+}
+
+function renderReceivablePayable() {
+  if (payableSearch && debtSearch && payableSearch.value !== debtSearch.value) payableSearch.value = debtSearch.value;
+  if (payableDateFrom && debtDateFrom && payableDateFrom.value !== debtDateFrom.value) payableDateFrom.value = debtDateFrom.value;
+  if (payableDateTo && debtDateTo && payableDateTo.value !== debtDateTo.value) payableDateTo.value = debtDateTo.value;
+  renderDebts();
+  renderPayables();
 }
 
 function bindPayableInputs() {
@@ -5046,7 +5062,7 @@ function clearPageSearchForShortcut(viewName) {
     cashflow: cashflowSearch,
     checks: checkSearch,
     debts: debtSearch,
-    payables: payableSearch,
+    payables: debtSearch,
     ledger: ledgerSearch,
     analysis: analysisSearch,
   };
@@ -5211,7 +5227,7 @@ function renderPageTabs() {
 }
 
 function setView(name) {
-  const nextView = name === "progress" ? "projects" : name;
+  const nextView = name === "progress" ? "projects" : name === "payables" ? "debts" : name;
   currentView = nextView;
   openViews.add(nextView);
   views.forEach((view) => view.classList.toggle("active", view.id === nextView));
@@ -5475,8 +5491,7 @@ function bindTopControls() {
   });
   deleteSelectedDrawingReportsButton?.addEventListener("click", deleteSelectedDrawingReports);
   [checkSearch, checkStatusFilter, checkDateFrom, checkDateTo].forEach((control) => control.addEventListener("input", renderChecks));
-  [debtSearch, debtStatusFilter, debtDateFrom, debtDateTo].forEach((control) => control.addEventListener("input", renderDebts));
-  [payableSearch, payableStatusFilter, payableDateFrom, payableDateTo].forEach((control) => control.addEventListener("input", renderPayables));
+  [debtSearch, debtStatusFilter, debtDateFrom, debtDateTo, payableSearch, payableStatusFilter, payableDateFrom, payableDateTo].forEach((control) => control.addEventListener("input", renderReceivablePayable));
   clearSearchButton.addEventListener("click", () => {
     searchInput.value = "";
     projectFilter.value = "";
@@ -5534,20 +5549,28 @@ function bindTopControls() {
   });
   clearDebtSearchButton.addEventListener("click", () => {
     debtSearch.value = "";
+    payableSearch.value = "";
     debtStatusFilter.value = "";
+    payableStatusFilter.value = "";
     debtDateFrom.value = "";
+    payableDateFrom.value = "";
     debtDateTo.value = "";
-    renderDebts();
+    payableDateTo.value = "";
+    renderReceivablePayable();
   });
   addReceivableUnitButton.addEventListener("click", () => addUnit("receivableUnits", "应收单位"));
   renameReceivableUnitButton.addEventListener("click", () => renameUnit("receivableUnits", receivableUnitSelect, "companyDebts", "应收单位"));
   deleteReceivableUnitButton.addEventListener("click", () => deleteUnit("receivableUnits", receivableUnitSelect, "companyDebts", "应收单位", "应收单位"));
   clearPayableSearchButton.addEventListener("click", () => {
+    debtSearch.value = "";
     payableSearch.value = "";
+    debtStatusFilter.value = "";
     payableStatusFilter.value = "";
+    debtDateFrom.value = "";
     payableDateFrom.value = "";
+    debtDateTo.value = "";
     payableDateTo.value = "";
-    renderPayables();
+    renderReceivablePayable();
   });
   clearChangeOrderSearchButton?.addEventListener("click", () => {
     changeOrderSearch.value = "";
@@ -7495,22 +7518,42 @@ function filteredUserAccounts() {
 
 function renderUserAccounts() {
   const rows = filteredUserAccounts().map((user) => `
-    <tr>
+    <tr class="user-main-row">
       <td><input class="row-check" type="checkbox" data-select-user="${user.index}" /></td>
       <td><input class="cell-input" data-user="${user.index}" data-field="name" value="${escapeHtml(user.name)}" /></td>
       <td><input class="cell-input" data-user="${user.index}" data-field="username" value="${escapeHtml(user.username)}" /></td>
-      <td><input class="cell-input" data-user="${user.index}" data-field="password" type="password" value="${escapeHtml(user.password || "")}" /></td>
+      <td><input class="cell-input user-password-input" data-user="${user.index}" data-field="password" value="${escapeHtml(user.password || "")}" /></td>
       <td><select class="cell-input" data-user="${user.index}" data-field="role">${selectOptions(userRoles, user.role)}</select></td>
       <td><select class="cell-input" data-user="${user.index}" data-field="status">${selectOptions(userStatuses, user.status)}</select></td>
       <td><input class="cell-input" data-user="${user.index}" data-field="phone" value="${escapeHtml(user.phone)}" /></td>
-      <td>${permissionChecks(user, "view", user.index)}</td>
-      <td>${permissionChecks(user, "edit", user.index)}</td>
+      <td class="permission-summary">
+        <strong>查看</strong><span>${escapeHtml(permissionSummary(user, "view"))}</span>
+        <strong>编辑</strong><span>${escapeHtml(permissionSummary(user, "edit"))}</span>
+      </td>
       <td><input class="cell-input wide-note" data-user="${user.index}" data-field="note" value="${escapeHtml(user.note)}" /></td>
+    </tr>
+    <tr class="user-permission-row">
+      <td></td>
+      <td colspan="8">
+        <details class="user-permission-detail">
+          <summary>权限设置</summary>
+          <div class="user-permission-panels">
+            <section>
+              <h4>可查看板块</h4>
+              ${permissionChecks(user, "view", user.index)}
+            </section>
+            <section>
+              <h4>可编辑板块</h4>
+              ${permissionChecks(user, "edit", user.index)}
+            </section>
+          </div>
+        </details>
+      </td>
     </tr>
   `).join("");
   document.querySelector("#userTable").innerHTML = `
-    <thead><tr><th class="select-col"></th><th>姓名</th><th>登录账号</th><th>登录密码</th><th>角色</th><th>状态</th><th>电话</th><th>查看权限</th><th>编辑权限</th><th>备注</th></tr></thead>
-    <tbody>${rows || `<tr><td colspan="10" class="empty">没有查询到账号</td></tr>`}</tbody>
+    <thead><tr><th class="select-col"></th><th>姓名</th><th>登录账号</th><th>登录密码</th><th>角色</th><th>状态</th><th>电话</th><th>权限摘要</th><th>备注</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="9" class="empty">没有查询到账号</td></tr>`}</tbody>
   `;
   bindUserAccountInputs();
 }

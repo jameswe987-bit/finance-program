@@ -84,25 +84,6 @@
             </div>
           </details>
           <details class="nav-group" open>
-            <summary>财务管理</summary>
-            <div class="nav-group-list">
-              <button type="button" data-view="accounts" data-clear-filters="true" data-short="账">资金账户</button>
-              <div class="nav-sub-list finance-sub-list" id="accountNavList"></div>
-              <button type="button" data-view="ledger" data-clear-filters="true" data-short="收">收支流水</button>
-              <div class="nav-sub-list finance-sub-list" id="ledgerNavList"></div>
-              <button type="button" data-view="debts" data-clear-filters="true" data-short="应">应收台账</button>
-              <div class="nav-sub-list finance-sub-list" id="debtNavList"></div>
-              <button type="button" data-view="payables" data-clear-filters="true" data-short="付">应付台账</button>
-              <div class="nav-sub-list finance-sub-list" id="payableNavList"></div>
-              <button type="button" data-view="checks" data-clear-filters="true" data-short="票">银行支票</button>
-              <div class="nav-sub-list finance-sub-list" id="checkNavList"></div>
-              <button type="button" data-view="dividends" data-clear-filters="true" data-short="分">股份分红</button>
-              <div class="nav-sub-list finance-sub-list" id="dividendNavList"></div>
-              <button type="button" data-view="cashflow" data-clear-filters="true" data-short="核">资金核对</button>
-              <div class="nav-sub-list finance-sub-list" id="cashflowNavList"></div>
-            </div>
-          </details>
-          <details class="nav-group" open>
             <summary>采购成本</summary>
             <div class="nav-group-list">
               <button type="button" data-view="warehouse" data-clear-filters="true" data-short="材">材料总览</button>
@@ -119,12 +100,35 @@
             </div>
           </details>
           <details class="nav-group" open>
+            <summary>财务管理</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="accounts" data-clear-filters="true" data-short="账">资金账户</button>
+              <div class="nav-sub-list finance-sub-list" id="accountNavList"></div>
+              <button type="button" data-view="ledger" data-clear-filters="true" data-short="收">收支流水</button>
+              <div class="nav-sub-list finance-sub-list" id="ledgerNavList"></div>
+              <button type="button" data-view="debts" data-clear-filters="true" data-short="应">应收 / 应付</button>
+              <div class="nav-sub-list finance-sub-list" id="debtNavList"></div>
+              <div class="nav-sub-list finance-sub-list hidden" id="payableNavList"></div>
+              <button type="button" data-view="checks" data-clear-filters="true" data-short="票">银行支票</button>
+              <div class="nav-sub-list finance-sub-list" id="checkNavList"></div>
+              <button type="button" data-view="cashflow" data-clear-filters="true" data-short="核">资金核对</button>
+              <div class="nav-sub-list finance-sub-list" id="cashflowNavList"></div>
+            </div>
+          </details>
+          <details class="nav-group" open>
             <summary>智能报表</summary>
             <div class="nav-group-list">
               <button type="button" data-view="analysis" data-clear-filters="true" data-short="统">查询统计</button>
               <div class="nav-sub-list finance-sub-list" id="analysisNavList"></div>
               <button type="button" data-view="aiTools" data-clear-filters="true" data-short="图">清单识别</button>
               <button type="button" data-view="drawingAnalysis" data-clear-filters="true" data-short="析">图纸分析</button>
+            </div>
+          </details>
+          <details class="nav-group" open>
+            <summary>股份分红</summary>
+            <div class="nav-group-list">
+              <button type="button" data-view="dividends" data-clear-filters="true" data-short="分">分红总览</button>
+              <div class="nav-sub-list finance-sub-list" id="dividendNavList"></div>
             </div>
           </details>
           <details class="nav-group" open>
@@ -686,7 +690,10 @@
             </div>
             <div class="permission-note">
               <span>权限规划</span>
-              <strong>查看权限控制可进入的板块，编辑权限控制可修改的数据；本地版先保存配置，多人登录版可直接沿用。</strong>
+              <strong>管理员可新增、删除账号，并直接查看和修改密码；每个账号下方可展开设置查看权限和编辑权限。</strong>
+            </div>
+            <div class="table-wrap soft-wrap user-account-wrap">
+              <table id="userTable"></table>
             </div>
             <div class="interface-switch-panel admin-only" id="interfaceSwitchPanel" hidden>
               <div class="section-title-row">
@@ -825,9 +832,6 @@
               </div>
               <p class="permission-note cloud-note">注意：程序功能更新走 GitHub + Netlify；业务数据同步走 Supabase 云端，两者不是同一个功能。</p>
             </div>
-            <div class="table-wrap soft-wrap">
-              <table id="userTable"></table>
-            </div>
           </section>
         </section>
 
@@ -910,105 +914,98 @@
         <section id="debts" class="view">
           <section class="panel">
             <div class="panel-head">
-              <h3>应收款台账</h3>
+              <h3>应收 / 应付台账</h3>
               <div class="panel-actions">
                 <span id="debtCount"></span>
+                <span id="payableCount"></span>
                 <button class="tool-button ghost" id="toggleDebtControls">收起</button>
+                <button class="tool-button ghost hidden" id="togglePayableControls" type="button">收起</button>
                 <button class="tool-button ghost" id="deleteSelectedDebts">删除应收</button>
                 <button class="tool-button" id="addDebt">新增应收</button>
+                <button class="tool-button ghost" id="deleteSelectedPayables">删除应付</button>
+                <button class="tool-button" id="addPayable">新增应付</button>
                 <button class="tool-button ghost" data-csv-template="debt">模板</button>
                 <button class="tool-button ghost" data-csv-import="debt">导入</button>
                 <button class="tool-button ghost" data-csv-export="debt">导出</button>
+                <button class="tool-button ghost" data-csv-template="payable">应付模板</button>
+                <button class="tool-button ghost" data-csv-import="payable">应付导入</button>
+                <button class="tool-button ghost" data-csv-export="payable">应付导出</button>
               </div>
             </div>
             <div class="debt-controls" id="debtControls">
               <div class="ledger-filter-grid debt-filter-grid">
                 <label class="field compact-field wide-field">
-                  <span>应收查询</span>
-                  <input id="debtSearch" type="search" placeholder="搜索应收单位、项目、款项说明、备注" />
+                  <span>应收 / 应付查询</span>
+                  <input id="debtSearch" type="search" placeholder="搜索单位、项目、款项说明、备注" />
+                  <input id="payableSearch" type="hidden" />
                 </label>
                 <label class="field compact-field">
-                  <span>状态</span>
+                  <span>应收状态</span>
                   <select id="debtStatusFilter">
                     <option value="">全部状态</option>
                   </select>
                 </label>
                 <label class="field compact-field">
-                  <span>开始日期</span>
-                  <input id="debtDateFrom" type="date" />
-                </label>
-                <label class="field compact-field">
-                  <span>结束日期</span>
-                  <input id="debtDateTo" type="date" />
-                </label>
-                <button class="tool-button ghost" id="clearDebtSearch">清空</button>
-              </div>
-              <div class="unit-manager">
-                <label class="field compact-field">
-                  <span>应收单位管理</span>
-                  <select id="receivableUnitSelect"></select>
-                </label>
-                <button class="icon-button" id="addReceivableUnit">新增单位</button>
-                <button class="icon-button" id="renameReceivableUnit">改名</button>
-                <button class="icon-button danger-button" id="deleteReceivableUnit">删除单位</button>
-              </div>
-              <div class="debt-report" id="debtReport"></div>
-            </div>
-            <div class="table-wrap">
-              <table id="debtTable"></table>
-            </div>
-          </section>
-        </section>
-
-        <section id="payables" class="view">
-          <section class="panel">
-            <div class="panel-head">
-              <h3>应付款台账</h3>
-              <div class="panel-actions">
-                <span id="payableCount"></span>
-                <button class="tool-button ghost" id="togglePayableControls">收起</button>
-                <button class="tool-button ghost" id="deleteSelectedPayables">删除应付</button>
-                <button class="tool-button" id="addPayable">新增应付</button>
-                <button class="tool-button ghost" data-csv-template="payable">模板</button>
-                <button class="tool-button ghost" data-csv-import="payable">导入</button>
-                <button class="tool-button ghost" data-csv-export="payable">导出</button>
-              </div>
-            </div>
-            <div class="debt-controls" id="payableControls">
-              <div class="ledger-filter-grid debt-filter-grid">
-                <label class="field compact-field wide-field">
-                  <span>应付查询</span>
-                  <input id="payableSearch" type="search" placeholder="搜索应付单位、项目、款项说明、备注" />
-                </label>
-                <label class="field compact-field">
-                  <span>状态</span>
+                  <span>应付状态</span>
                   <select id="payableStatusFilter">
                     <option value="">全部状态</option>
                   </select>
                 </label>
                 <label class="field compact-field">
                   <span>开始日期</span>
-                  <input id="payableDateFrom" type="date" />
+                  <input id="debtDateFrom" type="date" />
+                  <input id="payableDateFrom" type="hidden" />
                 </label>
                 <label class="field compact-field">
                   <span>结束日期</span>
-                  <input id="payableDateTo" type="date" />
+                  <input id="debtDateTo" type="date" />
+                  <input id="payableDateTo" type="hidden" />
                 </label>
-                <button class="tool-button ghost" id="clearPayableSearch">清空</button>
+                <button class="tool-button ghost" id="clearDebtSearch">清空</button>
+                <button class="tool-button ghost hidden" id="clearPayableSearch" type="button">清空应付</button>
               </div>
-              <div class="unit-manager">
-                <label class="field compact-field">
-                  <span>应付单位管理</span>
-                  <select id="payableUnitSelect"></select>
-                </label>
-                <button class="icon-button" id="addPayableUnit">新增单位</button>
-                <button class="icon-button" id="renamePayableUnit">改名</button>
-                <button class="icon-button danger-button" id="deletePayableUnit">删除单位</button>
+              <div class="receivable-payable-tools">
+                <div class="unit-manager">
+                  <label class="field compact-field">
+                    <span>应收单位管理</span>
+                    <select id="receivableUnitSelect"></select>
+                  </label>
+                  <button class="icon-button" id="addReceivableUnit">新增单位</button>
+                  <button class="icon-button" id="renameReceivableUnit">改名</button>
+                  <button class="icon-button danger-button" id="deleteReceivableUnit">删除单位</button>
+                </div>
+                <div class="unit-manager" id="payableControls">
+                  <label class="field compact-field">
+                    <span>应付单位管理</span>
+                    <select id="payableUnitSelect"></select>
+                  </label>
+                  <button class="icon-button" id="addPayableUnit">新增单位</button>
+                  <button class="icon-button" id="renamePayableUnit">改名</button>
+                  <button class="icon-button danger-button" id="deletePayableUnit">删除单位</button>
+                </div>
               </div>
-              <div class="debt-report" id="payableReport"></div>
             </div>
-            <div class="table-wrap">
-              <table id="payableTable"></table>
+            <div class="receivable-payable-grid">
+              <section class="debt-side-card">
+                <div class="section-title-row">
+                  <h4>应收款</h4>
+                  <span>客户未收、进度款预扣等</span>
+                </div>
+                <div class="debt-report" id="debtReport"></div>
+                <div class="table-wrap receivable-payable-table">
+                  <table id="debtTable"></table>
+                </div>
+              </section>
+              <section class="debt-side-card">
+                <div class="section-title-row">
+                  <h4>应付款</h4>
+                  <span>供应商、分红、人工等待付款</span>
+                </div>
+                <div class="debt-report" id="payableReport"></div>
+                <div class="table-wrap receivable-payable-table">
+                  <table id="payableTable"></table>
+                </div>
+              </section>
             </div>
           </section>
         </section>
@@ -1492,8 +1489,8 @@
         storageBucket: "finance-files",
       };
     </script>
-    <script src="./cloud-sync.js?v=20260705-2315"></script>
-    <script src="./data.js?v=20260705-2315"></script>
-    <script src="./app.js?v=20260705-2315"></script>
+    <script src="./cloud-sync.js?v=20260706-1030"></script>
+    <script src="./data.js?v=20260706-1030"></script>
+    <script src="./app.js?v=20260706-1030"></script>
   </body>
 </html>

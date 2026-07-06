@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-program-v20260705-2315";
+const CACHE_NAME = "finance-program-v20260706-1030";
 const APP_FILES = [
   "./",
   "./index.html",

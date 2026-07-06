@@ -1028,7 +1028,9 @@ select {
   }
 
   .panel-grid,
-  .equal-grid {
+  .equal-grid,
+  .receivable-payable-grid,
+  .receivable-payable-tools {
     grid-template-columns: 1fr;
   }
 
@@ -1434,7 +1436,40 @@ select {
 #checks .debt-filter-grid,
 #debts .debt-filter-grid,
 #payables .debt-filter-grid {
-  grid-template-columns: minmax(280px, 1fr) minmax(130px, 0.32fr) minmax(135px, 0.28fr) minmax(135px, 0.28fr) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(118px, 0.28fr) minmax(118px, 0.28fr) minmax(128px, 0.24fr) minmax(128px, 0.24fr) auto;
+}
+
+.receivable-payable-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.receivable-payable-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.debt-side-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.debt-side-card .section-title-row {
+  margin-bottom: 0;
+}
+
+.receivable-payable-table {
+  max-height: calc(100vh - 350px);
+  min-height: 260px;
 }
 
 #history .ledger-filter-grid {
@@ -1794,6 +1829,15 @@ select {
 
 .board-query {
   grid-template-columns: minmax(260px, 1fr) auto;
+}
+
+#users .board-query {
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: end;
+}
+
+#users .panel-actions {
+  gap: 8px;
 }
 
 .compact-field {
@@ -2875,7 +2919,98 @@ table {
 }
 
 #userTable {
-  min-width: 1320px;
+  min-width: 980px;
+}
+
+.user-account-wrap {
+  margin-bottom: 12px;
+  max-height: min(520px, calc(100vh - 260px));
+}
+
+#userTable th,
+#userTable td {
+  vertical-align: top;
+}
+
+#userTable .user-main-row td {
+  border-bottom: 0;
+}
+
+#userTable .user-permission-row td {
+  padding-top: 0;
+  background: #fbfcfd;
+}
+
+.user-password-input {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.permission-summary {
+  min-width: 180px;
+}
+
+.permission-summary strong {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.permission-summary span {
+  display: block;
+  max-width: 230px;
+  margin: 2px 0 5px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.user-permission-detail {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.user-permission-detail summary {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style: none;
+}
+
+.user-permission-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.user-permission-detail[open] summary {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.user-permission-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.user-permission-panels section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.user-permission-panels h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: 0;
 }
 
 #ledgerTable {
@@ -4843,6 +4978,7 @@ td.readonly {
   .daily-link-grid,
   .daily-required-grid,
   .guide-grid,
+  .user-permission-panels,
   .cloud-sync-grid,
   .cloud-sync-actions,
   .sync-guide-grid,
